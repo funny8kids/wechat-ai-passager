@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>稿匠 · 公众号 AI 创作工具 — 交互原型</title>
+<style>
+:root{
+  --bg:#eef0f3; --panel:#ffffff; --line:#e2e6ea; --text:#0f172a; --muted:#475569; --faint:#64748b;
+  --accent:#0a9953; --accent-weak:#e6f6ee; --warn:#b45309; --warn-weak:#fef3e2; --err:#b91c1c; --err-weak:#fdecec;
+  --ai:#4f46e5; --ai-weak:#eef0ff;
+  --r:10px; --shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.08);
+  --z-float:50; --z-modal:60; --z-toast:70;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--text); font-size:14px; line-height:1.6;
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ai);outline-offset:2px}
+svg{display:block}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#c6ccd4;border-radius:6px;border:2px solid transparent;background-clip:content-box}
+
+/* ===== 应用窗口 ===== */
+.window{width:100%;max-width:1440px;height:calc(100vh - 48px);min-height:640px;background:var(--panel);
+  border-radius:14px;box-shadow:var(--shadow);border:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.titlebar{height:44px;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line);
+  background:#f8f9fb;flex:none;user-select:none}
+.lights{display:flex;gap:8px}
+.lights i{width:12px;height:12px;border-radius:50%}
+.lights i:nth-child(1){background:#f65d57}.lights i:nth-child(2){background:#f8b93e}.lights i:nth-child(3){background:#43c25b}
+.appname{font-weight:600;display:flex;align-items:center;gap:8px}
+.appname .logo{width:22px;height:22px;border-radius:6px;background:var(--accent);display:grid;place-items:center;color:#fff}
+.appname .tag{font-size:11px;color:var(--faint);font-weight:400;border:1px solid var(--line);border-radius:4px;padding:0 6px;background:#fff}
+.title-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;border-radius:999px;padding:3px 10px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%}
+.dot.ok{background:var(--accent)}.dot.bad{background:var(--err)}.dot.warn{background:#eab308}
+.iconbtn{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--muted);transition:background .2s,color .2s}
+.iconbtn:hover{background:#eceff3;color:var(--text)}
+
+.shell{flex:1;display:flex;min-height:0}
+/* 左侧图标导航 */
+.rail{width:56px;flex:none;border-right:1px solid var(--line);background:#f8f9fb;display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px}
+.rail button{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--faint);position:relative;transition:background .2s,color .2s}
+.rail button:hover{background:#eceff3;color:var(--text)}
+.rail button.active{background:var(--accent-weak);color:var(--accent)}
+.rail button .tip{position:absolute;left:48px;top:50%;transform:translateY(-50%);background:#0f172a;color:#fff;font-size:12px;
+  padding:4px 8px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:var(--z-float)}
+.rail button:hover .tip{opacity:1}
+.rail .spacer{flex:1}
+.rail .badge{position:absolute;top:4px;right:4px;min-width:15px;height:15px;border-radius:8px;background:var(--err);color:#fff;font-size:10px;display:grid;place-items:center;padding:0 4px}
+
+/* 状态栏 */
+.statusbar{height:28px;flex:none;border-top:1px solid var(--line);background:#f8f9fb;display:flex;align-items:center;gap:18px;
+  padding:0 14px;font-size:12px;color:var(--faint)}
+.statusbar .sep{width:1px;height:12px;background:var(--line)}
+
+/* ===== 视图通用 ===== */
+.view{flex:1;min-width:0;display:none;flex-direction:column}
+.view.active{display:flex}
+.viewhead{flex:none;padding:16px 22px 12px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px}
+.viewhead h2{font-size:16px;font-weight:700}
+.viewhead .sub{font-size:12px;color:var(--faint)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 14px;font-size:13px;
+  color:var(--text);transition:background .2s,border-color .2s,color .2s;cursor:pointer}
+.btn:hover{background:#f3f5f8;border-color:#cfd6dd}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#087f46}
+.btn.ai{background:var(--ai);border-color:var(--ai);color:#fff}
+.btn.ai:hover{background:#4338ca}
+.btn.sm{padding:3px 10px;font-size:12px;border-radius:6px}
+.btn.ghost{border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{background:#eceff3}
+.btn.danger{color:var(--err);border-color:#f3c6c6}
+.btn.danger:hover{background:var(--err-weak)}
+
+/* ===== 选题台 ===== */
+.topics{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:18px 22px;overflow:auto}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
+.card .head{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex:none}
+.card .head b{font-size:14px}
+.tabs{display:flex;gap:2px;background:#eef0f3;border-radius:8px;padding:2px;margin-left:auto}
+.tabs button{font-size:12px;padding:3px 10px;border-radius:6px;color:var(--muted)}
+.tabs button.on{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.hotlist{list-style:none;max-height:420px;overflow:auto}
+.hotlist li{display:flex;gap:10px;padding:9px 16px;border-bottom:1px solid #f1f3f6;align-items:center;transition:background .15s}
+.hotlist li:hover{background:#f7f9fb}
+.rank{width:22px;text-align:center;font-weight:700;color:var(--faint);font-size:13px;flex:none}
+.rank.top{color:var(--err)}
+.hottitle{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hotmeta{font-size:11px;color:var(--faint);flex:none;display:flex;align-items:center;gap:4px}
+.hotlist .pick{flex:none;opacity:0;transition:opacity .15s}
+.hotlist li:hover .pick{opacity:1}
+.idea{padding:6px 16px 14px}
+.idea .item{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:10px;background:#fbfcfd}
+.idea .item .t{font-weight:600;font-size:13px}
+.idea .item .why{font-size:12px;color:var(--muted);margin-top:2px}
+.idea .item .row{display:flex;gap:8px;margin-top:8px;align-items:center}
+.idea .item .src{font-size:11px;color:var(--faint);margin-left:auto}
+.empty{color:var(--faint);font-size:13px;padding:18px;text-align:center}
+
+/* ===== 工作台（三栏）===== */
+.workbar{flex:none;display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--line);background:#fbfcfd}
+.workbar .doc{font-weight:600;font-size:13px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.workbar .meta{font-size:12px;color:var(--faint)}
+.workbar .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.score{display:inline-flex;align-items:center;gap:6px;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;background:#fff}
+.score b{font-size:13px}
+.work{flex:1;display:grid;grid-template-columns:264px minmax(0,1fr) 320px;min-height:0}
+.wcol{min-height:0;display:flex;flex-direction:column;border-right:1px solid var(--line)}
+.wcol:last-child{border-right:none}
+.wcol .colhead{flex:none;height:36px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--line);font-size:12px;color:var(--faint);background:#fbfcfd}
+.wcol .body{flex:1;overflow:auto;padding:12px}
+/* 左：块列表 */
+.blocks{list-style:none;display:flex;flex-direction:column;gap:8px}
+.blocks li{border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px 10px;display:flex;gap:8px;align-items:flex-start;
+  transition:border-color .15s,background .15s;cursor:pointer}
+.blocks li:hover{border-color:#c3ccd6}
+.blocks li.flagged{border-color:#f0c274;background:#fffbf2}
+.blocks li.applied{border-color:#9fd6ba;background:#f4fbf7}
+.blocks .grip{color:#c4ccd6;flex:none;padding-top:2px;cursor:grab}
+.blocks .txt{flex:1;font-size:12.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.blocks .kind{font-size:10px;color:var(--faint);border:1px solid var(--line);padding:0 5px;border-radius:4px;flex:none}
+.flagbtn{flex:none;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:#c4ccd6;transition:color .15s,background .15s}
+.flagbtn:hover{background:#f3f5f8}
+.flagbtn.on{color:var(--warn)}
+/* 中：公众号预览 */
+.phone{max-width:420px;margin:8px auto 24px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 10px rgba(15,23,42,.07);overflow:hidden}
+.phone .art{padding:20px 20px 32px}
+.phone h1{font-size:20px;line-height:1.4;margin-bottom:6px}
+.phone .byline{font-size:12px;color:var(--faint);margin-bottom:16px}
+.art-body p{font-size:15.5px;margin:0 0 1.1em;color:#26313f;text-align:justify}
+.art-body h3{font-size:16px;margin:1.4em 0 .6em;padding-left:10px;border-left:4px solid var(--accent);line-height:1.3}
+.art-body blockquote{border-left:3px solid #d5dbe2;color:var(--muted);background:#f7f9fa;margin:0 0 1.1em;padding:10px 14px;font-size:14px}
+.art-body figure{margin:0 0 1.1em}
+.art-body figure .imgbox{aspect-ratio:2.35/1;border-radius:8px;background:
+  repeating-linear-gradient(135deg,#eef1f4 0 12px,#e6eaef 12px 24px);display:grid;place-items:center;color:var(--faint);font-size:12px;gap:4px}
+.art-body figure figcaption{font-size:12px;color:var(--faint);margin-top:6px;text-align:center}
+.slotmark{display:inline-block;font-size:11px;color:var(--ai);background:var(--ai-weak);border:1px dashed var(--ai);border-radius:5px;padding:0 6px;margin:0 2px;vertical-align:2px}
+.mutanime{animation:muta 1.6s ease}
+.art-body.editable{outline:none}
+.art-body.editable :focus{outline:1px dashed #b9c4d0;outline-offset:3px;border-radius:3px}
+.art-body.editable :hover{background:#fbfcfd;transition:background .2s}
+@keyframes muta{0%{background:#d9f2e4}60%{background:#d9f2e4}100%{background:transparent}}
+.hint-select{position:sticky;top:0;margin:0 auto;width:max-content;font-size:12px;color:var(--faint);background:#f1f3f6;border:1px solid var(--line);border-radius:999px;padding:2px 12px;z-index:5}
+/* AI 选区浮动工具条 */
+.floatbar{position:absolute;display:none;align-items:center;gap:2px;background:#0f172a;border-radius:9px;padding:4px;box-shadow:0 6px 20px rgba(15,23,42,.35);z-index:var(--z-float)}
+.floatbar.show{display:flex}
+.floatbar button{color:#e5e9f0;font-size:12px;padding:4px 9px;border-radius:6px;white-space:nowrap;transition:background .15s}
+.floatbar button:hover{background:#334155;color:#fff}
+.floatbar .div{width:1px;height:16px;background:#334155;margin:0 3px}
+.floatbar input{background:#1e293b;border:1px solid #334155;color:#fff;font-size:12px;border-radius:6px;padding:4px 8px;width:130px;display:none}
+.floatbar input.show{display:block}
+/* 右：AI 流水线 */
+.flow{display:flex;flex-direction:column;gap:10px}
+.step{font-size:12px;color:var(--faint);display:flex;align-items:center;gap:8px}
+.step .n{width:18px;height:18px;border-radius:50%;background:#e7ebf0;display:grid;place-items:center;font-size:11px;color:var(--muted);flex:none}
+.step.done .n{background:var(--accent);color:#fff}.step.now .n{background:var(--ai);color:#fff}
+.sugg{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;transition:box-shadow .2s}
+.sugg:hover{box-shadow:0 2px 10px rgba(15,23,42,.07)}
+.sugg .sh{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--ai-weak);border-bottom:1px solid var(--line);font-size:12px}
+.sugg .sh b{font-size:12.5px;color:var(--ai)}
+.sugg .target{margin-left:auto;font-size:11px;color:var(--faint)}
+.sugg .diff{padding:10px 12px;font-size:12.5px;line-height:1.55}
+.sugg .diff .old{color:var(--faint);text-decoration:line-through;text-decoration-color:#cbd5e1;background:var(--err-weak);border-radius:4px;padding:1px 3px}
+.sugg .diff .new{color:#065f46;background:var(--accent-weak);border-radius:4px;padding:1px 3px}
+.sugg .note{padding:0 12px 8px;font-size:11.5px;color:var(--faint)}
+.sugg .acts{display:flex;gap:8px;padding:0 12px 10px;align-items:center}
+.sugg .acts .res{margin-left:auto;font-size:12px;color:var(--accent)}
+.sugg.dismissed{opacity:.55}
+.sugg.applied .sh{background:var(--accent-weak)}
+.genbtns{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 6px}
+.warnbox{font-size:12px;color:var(--warn);background:var(--warn-weak);border:1px solid #f0d9ae;border-radius:8px;padding:8px 10px;line-height:1.5}
+
+/* ===== 配图地图 ===== */
+.maps{padding:18px 22px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.mapcard{display:grid;grid-template-columns:280px 1fr auto;gap:16px;border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:14px;align-items:center}
+.mapcard .thumb{aspect-ratio:2.35/1;border-radius:8px;background:repeating-linear-gradient(135deg,#eef1f4 0 12px,#e6eaef 12px 24px);
+  display:grid;place-items:center;color:var(--faint);font-size:12px;text-align:center;gap:4px;padding:8px}
+.mapcard .ctx .pos{font-size:12px;color:var(--faint);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.mapcard .ctx .quote{font-size:13px;color:var(--muted);border-left:3px solid var(--line);padding-left:10px}
+.mapcard .ctx .intent{font-size:12px;color:var(--ai);margin-top:6px}
+.mapcard .ops{display:flex;flex-direction:column;gap:8px;min-width:120px}
+.statechip{font-size:11px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--faint)}
+.statechip.ok{color:var(--accent);background:var(--accent-weak);border-color:#bfe6d2}
+.statechip.pend{color:var(--warn);background:var(--warn-weak);border-color:#f0d9ae}
+
+/* ===== 发布队列 ===== */
+.qwrap{padding:18px 22px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.qcard{border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:16px}
+.qcard .qt{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+.qcard .qt b{font-size:14px}
+.qcard .qmeta{font-size:12px;color:var(--faint);margin-bottom:12px}
+.timeline{display:flex;align-items:flex-start;gap:0;margin:10px 0 4px}
+.tl{flex:1;text-align:center;position:relative;font-size:11.5px;color:var(--faint)}
+.tl::before{content:"";position:absolute;top:9px;left:-50%;width:100%;height:2px;background:var(--line)}
+.tl:first-child::before{display:none}
+.tl i{display:block;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);background:#fff;margin:0 auto 5px;position:relative;z-index:1}
+.tl.done i{background:var(--accent);border-color:var(--accent)}
+.tl.done::before{background:var(--accent)}
+.tl.fail i{background:var(--err);border-color:var(--err)}
+.tl.fail{color:var(--err)}
+.qerr{margin-top:10px;border:1px solid #f3c6c6;background:var(--err-weak);border-radius:8px;padding:10px 12px;font-size:12.5px;color:#7f1d1d}
+.qerr b{font-size:12.5px}
+.qerr .row{display:flex;gap:8px;margin-top:8px}
+.notice{display:flex;gap:10px;border:1px solid #f0d9ae;background:var(--warn-weak);color:#7c4a05;border-radius:var(--r);padding:12px 14px;font-size:12.5px;line-height:1.6}
+
+/* ===== 设置弹窗 ===== */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;place-items:center;z-index:var(--z-modal)}
+.overlay.show{display:grid}
+.modal{width:600px;max-width:calc(100vw - 40px);max-height:calc(100vh - 60px);background:#fff;border-radius:14px;box-shadow:0 24px 60px rgba(15,23,42,.3);
+  display:flex;flex-direction:column;overflow:hidden}
+.modal .mhead{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);flex:none}
+.modal .mhead b{font-size:15px}
+.modal .mhead .x{margin-left:auto}
+.mtabs{display:flex;gap:2px;padding:10px 14px 0;border-bottom:1px solid var(--line);flex:none;background:#fbfcfd}
+.mtabs button{font-size:13px;padding:8px 14px;border-bottom:2px solid transparent;color:var(--muted);border-radius:8px 8px 0 0}
+.mtabs button.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.mbody{padding:18px;overflow:auto;display:none}
+.mbody.on{display:block}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;font-weight:600;margin-bottom:4px}
+.field .desc{font-size:11.5px;color:var(--faint);margin-top:3px}
+.field input,.field select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;color:var(--text)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.switchrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f3f6}
+.switchrow .l{flex:1;font-size:13px}
+.switchrow .l small{display:block;color:var(--faint);font-size:11.5px;font-weight:400}
+.switch{width:36px;height:20px;border-radius:999px;background:#d3dae2;position:relative;flex:none;transition:background .2s;cursor:pointer;border:none}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.switch.on{background:var(--accent)}.switch.on::after{left:18px}
+.mfoot{display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid var(--line);flex:none;background:#fbfcfd}
+.mfoot .tip{font-size:11.5px;color:var(--faint);margin-right:auto}
+.keynote{font-size:11.5px;color:var(--muted);background:#f6f7fa;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start}
+
+/* 选题搜索 */
+.topicsearch{display:flex;gap:8px;padding:12px 22px 0;align-items:center}
+.topicsearch input{flex:1;max-width:520px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;background:#fff;color:var(--text)}
+.topicsearch .hint{font-size:11.5px;color:var(--faint)}
+/* 配图来源切换 */
+.srctabs{display:flex;gap:2px;background:#eef0f3;border-radius:8px;padding:2px;width:max-content;margin:2px 0 10px}
+.srctabs button{font-size:12px;padding:3px 12px;border-radius:6px;color:var(--muted);transition:background .15s,color .15s}
+.srctabs button.on{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.08);font-weight:600}
+.srcnote{font-size:11.5px;color:var(--faint);margin-top:6px;display:flex;gap:6px;align-items:flex-start}
+.srcnote .crisk{color:var(--warn);font-weight:600}
+.mapcard .thumb .url{font-size:10.5px;color:#94a3b8;word-break:break-all}
+/* 多 Agent 流水线 */
+.agent{display:flex;align-items:center;gap:8px;font-size:12px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px 10px;margin-bottom:6px;transition:border-color .15s,background .15s}
+.agent .n{width:18px;height:18px;border-radius:50%;background:#e7ebf0;display:grid;place-items:center;font-size:11px;color:var(--muted);flex:none}
+.agent .st{margin-left:auto;font-size:11px;color:var(--faint)}
+.agent.done{border-color:#bfe6d2}.agent.done .n{background:var(--accent);color:#fff}
+.agent.done .st{color:var(--accent)}
+.agent.now{border-color:#c7cdfa;background:var(--ai-weak)}.agent.now .n{background:var(--ai);color:#fff}
+.agent.now .st{color:var(--ai)}
+.agent.wait .st{color:var(--warn)}
+
+/* toast */
+.toast{position:fixed;bottom:44px;left:50%;transform:translateX(-50%) translateY(8px);background:#0f172a;color:#fff;font-size:13px;
+  padding:9px 16px;border-radius:9px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:var(--z-toast);display:flex;gap:10px;align-items:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast button{color:#7dd3fc;font-size:12.5px;text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div class="window">
+  <!-- 标题栏 -->
+  <div class="titlebar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="appname">
+      <span class="logo"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+      稿匠 <span class="tag">交互原型 v0.2 · 对应 PRD v0.1</span>
+    </div>
+    <div class="title-right">
+      <span class="pill" id="ipPill"><span class="dot ok"></span>公网 IP 42.120.x.x · 白名单正常</span>
+      <span class="pill"><span class="dot ok"></span>调度器已驻留</span>
+      <button class="iconbtn" id="btnSettings" aria-label="设置">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="shell">
+    <!-- 左侧导航 -->
+    <nav class="rail" aria-label="主导航">
+      <button data-view="vTopics" class="active" aria-label="选题台"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M12 7v5l3 3"/><path d="M3 12h4"/></svg><span class="tip">选题台 · 热榜与灵感</span></button>
+      <button data-view="vEditor" aria-label="编辑工作台"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span class="tip">编辑工作台</span></button>
+      <button data-view="vImages" aria-label="配图地图"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 20"/></svg><span class="tip">配图地图</span><span class="badge">2</span></button>
+      <button data-view="vQueue" aria-label="发布队列"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="tip">发布队列 · 定时</span></button>
+      <div class="spacer"></div>
+      <button aria-label="帮助"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.4c-.8.3-.9 1.1-.9 1.6"/><path d="M12 17h.01"/></svg><span class="tip">帮助 · 人在回路说明</span></button>
+    </nav>
+
+    <!-- ============ 选题台 ============ -->
+    <section class="view active" id="vTopics">
+      <div class="viewhead"><h2>选题台</h2><span class="sub">热榜由本地内嵌 DailyHot 抓取；话题搜索与生成由选题 Agent 完成</span></div>
+      <div class="topicsearch">
+        <input id="topicKw" placeholder="输入关键词（如：班味 / 搭子社交），选题 Agent 将聚合热榜 + 联网检索生成相关话题" aria-label="选题关键词">
+        <button class="btn ai" id="genTopics">AI 生成相关话题</button>
+        <span class="hint">生成结果进入右侧“我的选题”，逐条由你采纳</span>
+      </div>
+      <div class="topics">
+        <div class="card">
+          <div class="head"><b>实时热榜</b>
+            <div class="tabs" role="tablist" aria-label="热榜平台">
+              <button class="on" data-board="weibo">微博</button><button data-board="zhihu">知乎</button><button data-board="dj">抖音</button>
+            </div>
+            <button class="btn sm ghost" id="refreshHot" aria-label="刷新热榜"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>刷新</button>
+          </div>
+          <ul class="hotlist" id="hotList" aria-label="热榜条目"></ul>
+        </div>
+        <div class="card">
+          <div class="head"><b>我的选题</b><span class="pill" style="margin-left:auto">本周 2 / 3 篇</span></div>
+          <div class="idea" id="ideaBox">
+            <div class="item">
+              <div class="t">“班味”为什么成了年度社交暗号</div>
+              <div class="why">切入角度：从个体吐槽到职场身份认同；可用素材：去年调研数据 + 自己实习经历</div>
+              <div class="row"><button class="btn sm primary gotoEditor">开始写作</button><button class="btn sm">补充素材</button><span class="src">来源：知乎热榜 · 昨天 21:40</span></div>
+            </div>
+            <div class="item">
+              <div class="t">年轻人开始“攒搭子”，是社交降级吗</div>
+              <div class="why">切入角度：反常识——攒搭子其实是精明的社交投资</div>
+              <div class="row"><button class="btn sm primary gotoEditor">开始写作</button><button class="btn sm">补充素材</button><span class="src">来源：微博热榜 · 今天 09:12</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 编辑工作台 ============ -->
+    <section class="view" id="vEditor">
+      <div class="workbar">
+        <span class="doc">“班味”为什么成了年度社交暗号</span>
+        <span class="meta">1,284 字 · 自动保存于 22:41</span>
+        <div class="right">
+          <select class="btn sm" aria-label="排版主题">
+            <option>主题：青竹绿</option><option>主题：杂志灰</option><option>主题：手账暖橙</option><option>主题：深色极简</option>
+          </select>
+          <span class="score" title="基于去AI味改写清单的规则评分">AI 味 <b style="color:var(--warn)">37</b>/100</span>
+          <button class="btn sm">送草稿箱</button>
+          <button class="btn sm ai" id="genFlow">生成流水线建议</button>
+        </div>
+      </div>
+      <div class="work">
+        <!-- 左：块列表 -->
+        <div class="wcol">
+          <div class="colhead"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>段落块 · 拖动排序 · 旗标=回炉</div>
+          <div class="body"><ul class="blocks" id="blockList"></ul></div>
+        </div>
+        <!-- 中：预览 -->
+        <div class="wcol" style="position:relative">
+          <div class="colhead"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>公众号实时预览（doocs 渲染引擎）</div>
+          <div class="body" id="previewScroll">
+            <p class="hint-select">点击段落可直接编辑 · 选中文字可调 AI —— 只改你圈定的范围</p>
+            <div class="phone"><div class="art">
+              <h1 id="docTitle">“班味”为什么成了年度社交暗号</h1>
+              <div class="byline">原创稿纸 · 2026-09-19 · 阅读大约 4 分钟</div>
+              <div class="art-body editable" id="artBody" contenteditable="true" spellcheck="false">
+                <p>你有没有发现，现在年轻人打招呼的方式变了。“吃了吗”已经退场，一句“今天班味重吗”就能瞬间拉近距离。这种默契背后，其实是一种新的身份认同。</p>
+                <h3>班味，是打工人自己的方言</h3>
+                <p>班味不是疲惫本身，而是被工位驯化出来的气质：走路快、回消息秒、下班后在便利店门口坐十分钟才起身。<mark class="slotmark">图1槽位</mark>它之所以成为暗号，是因为它精准得近乎残忍——每个人都在这三个字里认出了自己。</p>
+                <blockquote>“辞退我的不是公司，是我身上洗不掉的班味。”——某热评</blockquote>
+                <h3为什么它偏偏今年爆火</h3>
+                <p>第一，职场内容的情绪表达正在从抱怨转向自嘲；第二，短视频让“气质外化”变得可拍可演；第三，年轻人需要一个既不卖惨也不打鸡血的中间叙事。班味恰好同时满足了这三点。</p>
+                <p>更重要的是，它让分散的个体经验第一次拥有了公共词汇。当一个人说“我身上有班味”时，他其实是在说：我看见了你，你也看见了我。</p>
+              </div>
+            </div></div>
+          </div>
+          <!-- 选区浮动工具条 -->
+          <div class="floatbar" id="floatbar" role="toolbar" aria-label="AI 选区操作">
+            <button data-act="口语化">更口语</button>
+            <button data-act="缩短">缩短</button>
+            <button data-act="扩写">展开</button>
+            <button data-act="去AI味">去AI味</button>
+            <button data-act="换例子">换个例子</button>
+            <span class="div"></span>
+            <button id="customReq">自定义要求…</button>
+            <input id="customInput" placeholder="例：这段别用排比，加句自嘲" aria-label="自定义改写要求">
+          </div>
+        </div>
+        <!-- 右：AI 流水线 -->
+        <div class="wcol">
+          <div class="colhead"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><rect x="8" y="8" width="8" height="8" rx="2"/></svg>AI 助手 · 建议仅供你逐条放行</div>
+          <div class="body">
+            <div class="agent done"><span class="n">1</span>选题 Agent · 聚合热榜+检索，产出 5 个候选角度<span class="st">已采纳 2</span></div>
+            <div class="agent done"><span class="n">2</span>调研 Agent · 联网搜索 + 网页截图取证<span class="st">素材 6 条</span></div>
+            <div class="agent done"><span class="n">3</span>写作 Agent · 按大纲生成初稿<span class="st">人写段落未动</span></div>
+            <div class="agent now"><span class="n">4</span>回炉 Agent · 只处理旗标段落<span class="st">建议待你放行</span></div>
+            <div class="agent wait"><span class="n">5</span>配图 Agent · 按槽位出 prompt + 三来源候选<span class="st">待开始</span></div>
+            <div class="agent wait"><span class="n">6</span>去味 Agent · 注入个人素材库改写<span class="st">待开始</span></div>
+            <div class="agent"><span class="n">7</span>审核 Agent · 事实/版权/敏感点体检<span class="st">终审前自动运行</span></div>
+            <div class="genbtns">
+              <button class="btn sm" data-gen="flagged">回炉旗标段落</button>
+              <button class="btn sm" data-gen="aitone">全文扫描 AI 味</button>
+            </div>
+            <div class="flow" id="suggBox" style="margin-top:8px"></div>
+            <div class="warnbox" style="margin-top:12px"><b>人在回路：</b>AI 不会自动改动正文。所有修改以“建议卡片”出现，你点“应用”才生效；不存在作用于全文的一键重写。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 配图地图 ============ -->
+    <section class="view" id="vImages">
+      <div class="viewhead"><h2>配图地图</h2><span class="sub">配图 Agent 按文章语义生成槽位与提示词；每个槽位可在三种来源间切换候选，逐张由你确认</span></div>
+      <div class="maps">
+        <div class="mapcard">
+          <div class="thumb">槽位图 1<br><span style="font-size:11px">便利店门口坐着的年轻人（手绘插画风）</span></div>
+          <div class="ctx">
+            <div class="pos"><b>位置：第 2 段 “班味，是打工人自己的方言”</b><span class="statechip pend">待确认</span></div>
+            <div class="srctabs" role="tablist" aria-label="图片来源"><button class="on">AI 生图</button><button>网图搜索</button><button>网页截图</button></div>
+            <div class="quote">“班味不是疲惫本身……下班后在便利店门口坐十分钟才起身。”</div>
+            <div class="intent">配图 Agent 生成的提示词：<i>“夜晚便利店门口，年轻人独自坐在台阶上望着手机，暖黄灯光，手绘插画风，留白构图，情绪克制不丧”</i></div>
+          </div>
+          <div class="ops">
+            <button class="btn sm">换一张</button><button class="btn sm">改提示词</button><button class="btn sm danger">删掉</button>
+            <button class="btn sm primary confirmImg">确认用这张</button>
+          </div>
+        </div>
+        <div class="mapcard">
+          <div class="thumb">槽位图 2<br><span style="font-size:11px">“班味”话题微博热搜截图 + 数据信息图</span></div>
+          <div class="ctx">
+            <div class="pos"><b>位置：第 3 节 “为什么它偏偏今年爆火” 前</b><span class="statechip ok">已确认</span></div>
+            <div class="srctabs" role="tablist" aria-label="图片来源"><button>AI 生图</button><button class="on">网图搜索</button><button>网页截图</button></div>
+            <div class="quote">“第一，职场内容的情绪表达正在从抱怨转向自嘲……”</div>
+            <div class="srcnote"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:2px"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+              <span><span class="crisk">版权提示：</span>候选来自 搜索API（图片来源 weibo.com 热榜页），调研 Agent 已附原始链接。商用发布前请确认授权，或改用“截图自证”方式呈现。</span></div>
+          </div>
+          <div class="ops">
+            <button class="btn sm">换候选</button><button class="btn sm">查看原网页</button><button class="btn sm">重新搜索</button>
+          </div>
+        </div>
+        <div class="mapcard">
+          <div class="thumb">槽位图 3<br><span style="font-size:11px">本地无头浏览器截取的知乎高赞回答页<br><span class="url">zhihu.com/question/xxxx（截取核心区）</span></span></div>
+          <div class="ctx">
+            <div class="pos"><b>位置：引用块 “辞退我的不是公司……” 之后</b><span class="statechip pend">待确认</span></div>
+            <div class="srctabs" role="tablist" aria-label="图片来源"><button>AI 生图</button><button>网图搜索</button><button class="on">网页截图</button></div>
+            <div class="quote">“‘辞退我的不是公司，是我身上洗不掉的班味。’——某热评”</div>
+            <div class="srcnote"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:2px"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+              <span>截图由调研 Agent 用<b>本地</b>无头浏览器完成（不经第三方服务），自动打码用户名/头像，引用截图评论在公众号场景风险较低。</span></div>
+          </div>
+          <div class="ops">
+            <button class="btn sm">重新截取</button><button class="btn sm">框选区域</button><button class="btn sm primary confirmImg">确认用这张</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 发布队列 ============ -->
+    <section class="view" id="vQueue">
+      <div class="viewhead"><h2>发布队列</h2><span class="sub">调度器随应用驻留托盘；到点先推草稿箱，最终“发布”由你在弹窗里放行</span></div>
+      <div class="qwrap">
+        <div class="notice">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:2px"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+          <div><b>单机模式的两个前提：</b>① 发布那一刻电脑需开机联网（App 未开时由 Windows 计划任务拉起后台命令补发）；② 微信 API 无“定时发布”字段，本队列通过“到点调 freepublish”实现，失败会在此明确报错。</div>
+        </div>
+        <div class="qcard">
+          <div class="qt"><b>“班味”为什么成了年度社交暗号</b><span class="statechip" style="color:var(--ai);background:var(--ai-weak);border-color:#c7cdfa">主题：青竹绿</span></div>
+          <div class="qmeta">计划 09-21 08:30 · 配图 2/2 已确认 · AI味 12/100 · 已人工终审</div>
+          <div class="timeline">
+            <div class="tl done"><i></i>素材上传</div><div class="tl done"><i></i>创建草稿</div><div class="tl"><i></i>到点提醒发布</div><div class="tl"><i></i>发布完成</div>
+          </div>
+          <div style="display:flex;gap:8px"><button class="btn sm">提前发布</button><button class="btn sm">改时间</button><button class="btn sm danger">取消</button></div>
+        </div>
+        <div class="qcard">
+          <div class="qt"><b>年轻人开始“攒搭子”，是社交降级吗</b><span class="statechip" style="color:var(--ai);background:var(--ai-weak);border-color:#c7cdfa">主题：杂志灰</span></div>
+          <div class="qmeta">计划 09-19 20:00 · 实际 20:00:03 尝试发布</div>
+          <div class="timeline">
+            <div class="tl done"><i></i>素材上传</div><div class="tl done"><i></i>创建草稿</div><div class="tl fail"><i></i>发布失败</div><div class="tl"><i></i>发布完成</div>
+          </div>
+          <div class="qerr">
+            <b>微信返回 40164：调用方 IP 不在白名单</b><br>
+            本机公网 IP 已变更为 42.120.x.x。请到 公众号后台 → 设置与权限 → IP 白名单 更新后重试。
+            <div class="row"><button class="btn sm primary" id="retryPub">更新完毕，重试发布</button><button class="btn sm">复制当前 IP</button><button class="btn sm">打开公众号后台</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 状态栏 -->
+  <div class="statusbar">
+    <span>本地库：文章 24 · 素材 168</span><span class="sep"></span>
+    <span><span class="dot ok" style="display:inline-block;margin-right:5px"></span>微信 API 连通（测试于 5 分钟前）</span><span class="sep"></span>
+    <span>AI：DeepSeek · key 已加密存于 Windows 凭据管理器</span><span class="sep"></span>
+    <span style="margin-left:auto">原型：所有数据为演示假数据</span>
+  </div>
+</div>
+
+<!-- ============ 设置弹窗 ============ -->
+<div class="overlay" id="settingsOverlay" role="dialog" aria-modal="true" aria-label="设置">
+  <div class="modal">
+    <div class="mhead"><b>设置</b><button class="iconbtn x" id="closeSettings" aria-label="关闭设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="mtabs" role="tablist">
+      <button class="on" data-mtab="ai">AI 服务</button><button data-mtab="wx">公众号</button><button data-mtab="pub">发布与调度</button><button data-mtab="data">数据</button>
+    </div>
+    <div class="mbody on" id="mtab-ai">
+      <div class="keynote"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:1px"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        所有密钥仅存入本机 Windows 凭据管理器（加密），不会写入配置文件，也不会上传任何第三方服务器。</div>
+      <div class="field"><label for="baseUrl">API Base URL</label><input id="baseUrl" value="https://api.deepseek.com/v1"></div>
+      <div class="grid2">
+        <div class="field"><label for="aiKey">API Key</label><input id="aiKey" type="password" value="sk-________________"></div>
+        <div class="field"><label for="aiModel">模型</label><select id="aiModel"><option>deepseek-chat（写作）</option><option>claude 系（改写）</option><option>gpt 系（配图 prompt）</option></select></div>
+      </div>
+      <div class="field"><label for="imgModel">文生图服务</label><select id="imgModel"><option>用户自带 key · 通义万相</option><option>DALL·E</option><option>本地 Stable Diffusion</option></select>
+        <div class="desc">配图按“槽位意图”生成候选，由你在配图地图逐张确认</div></div>
+    </div>
+    <div class="mbody" id="mtab-wx">
+      <div class="field"><label for="appid">AppID</label><input id="appid" value="wx1a2b3c4d5e6f7g8h"></div>
+      <div class="field"><label for="appsecret">AppSecret</label><input id="appsecret" type="password" value="________________________"></div>
+      <div class="field"><label for="acctType">账号类型</label><select id="acctType"><option>已认证订阅号</option><option>服务号</option><option>未认证订阅号（草稿/发布 API 可能无权限）</option></select>
+        <div class="desc">未认证个人订阅号对草稿箱/发布 API 的权限有限，请先用“连通性自检”验证</div></div>
+      <div class="switchrow"><div class="l">发布前必须我手动确认<small>关闭后到点自动 freepublish（不推荐，失去人在回路最后一道门）</small></div><button class="switch on" role="switch" aria-checked="true" aria-label="发布前确认"></button></div>
+      <div style="margin-top:12px"><button class="btn primary" id="connTest">连通性自检（取 token + 草稿接口权限）</button></div>
+    </div>
+    <div class="mbody" id="mtab-pub">
+      <div class="switchrow"><div class="l">常驻系统托盘<small>定时发布依赖电脑开机联网，App 可在后台</small></div><button class="switch on" role="switch" aria-checked="true" aria-label="托盘常驻"></button></div>
+      <div class="switchrow"><div class="l">注册 Windows 计划任务兜底<small>App 未运行时到点拉起无界面命令补发</small></div><button class="switch on" role="switch" aria-checked="true" aria-label="计划任务"></button></div>
+      <div class="switchrow"><div class="l">启动时检测公网 IP 并提醒白名单<small>IP 变化时置顶提示，避免 40164 静默失败</small></div><button class="switch on" role="switch" aria-checked="true" aria-label="IP检测"></button></div>
+      <div class="field" style="margin-top:12px"><label for="lead">发布前提醒</label><select id="lead"><option>提前 10 分钟</option><option>提前 30 分钟</option><option>不提醒</option></select></div>
+    </div>
+    <div class="mbody" id="mtab-data">
+      <div class="field"><label>本地数据目录</label><input value="D:\稿匠\data（SQLite + 素材文件）" readonly>
+        <div class="desc">文章快照保留最近 50 版，可按段落粒度回退</div></div>
+      <div class="field"><label>个人素材库</label><input value="D:\稿匠\personal（我的经历 · 口头禅 · 观点立场）" readonly>
+        <div class="desc">去 AI 味改写时注入第一人称材料 —— “活人感”的数据来源</div></div>
+      <div style="display:flex;gap:8px"><button class="btn">导出全部文章(Markdown)</button><button class="btn">打开目录</button></div>
+    </div>
+    <div class="mfoot"><span class="tip">改动保存后立即生效</span><button class="btn" id="cancelSettings">取消</button><button class="btn primary" id="saveSettings">保存</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ---------- 视图切换 ---------- */
+const railBtns=document.querySelectorAll(".rail button[data-view]");
+railBtns.forEach(b=>b.addEventListener("click",()=>{
+  railBtns.forEach(x=>x.classList.toggle("active",x===b));
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===b.dataset.view));
+}));
+document.querySelectorAll(".gotoEditor").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelector('.rail button[data-view="vEditor"]').click();
+}));
+
+/* ---------- toast ---------- */
+const toast=document.getElementById("toast");let toastTimer;
+function showToast(html,actionFn,actionLabel){
+  toast.innerHTML="";
+  const s=document.createElement("span");s.innerHTML=html;toast.appendChild(s);
+  if(actionFn){const b=document.createElement("button");b.textContent=actionLabel;b.onclick=()=>{actionFn();hideToast();};toast.appendChild(b);}
+  toast.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(hideToast,actionFn?6000:2600);
+}
+function hideToast(){toast.classList.remove("show")}
+
+/* ---------- 热榜（mock） ---------- */
+const boards={
+  weibo:[["“班味”成为年轻人社交暗号",428],["第一批00后已经开始攒搭子了",356],["职场情绪劳动被看见了",298],["为什么我们害怕下班后的时间",241],["月薪和班味成正比吗",198],["自我介绍正在消失",176],["工位驯化实录",152],["周五下午效率之谜",134],["同事式友谊的保质期",121],["办公室绿植求生指南",98]],
+  zhihu:[["如何评价年轻人自嘲身上有'班味'",892],["为什么有人下班后喜欢在车里/便利店坐很久",764],["搭子社交是社交降级还是社交升级",655],["职场人如何停止情绪内耗",588],["自嘲是不是一种高级的表达",472],["Work化生存：工作如何侵占语言",389],["为什么'收到请回复'让人紧张",331],["体面的穷和体面的累",296],["社交货币通货膨胀",244],["如何积累自己的'个人素材库'",198]],
+  dj:[["班味挑战赛播放3.2亿",956],["下班后的十分钟文学",712],["攒搭子实录",644],["办公室方言大赏",521],["职场自嘲语录",486],["便利店门口的人",377],["周五变脸现场",342],["工位考古",289],["回消息速度等级",233],["领导语录模仿秀",196]]
+};
+function renderBoard(name){
+  const ul=document.getElementById("hotList");ul.innerHTML="";
+  boards[name].forEach(([t,h],i)=>{
+    const li=document.createElement("li");
+    li.innerHTML=`<span class="rank ${i<3?"top":""}">${i+1}</span><span class="hottitle">${t}</span>
+      <span class="hotmeta"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2"><path d="M12 2c1 4-3 5-3 9a3 3 0 0 0 6 0c0-1 0-2-1-3 3 2 5 5 5 8a7 7 0 1 1-14 0c0-6 7-8 7-14Z"/></svg>${h}万</span>
+      <button class="btn sm pick addIdea">加入选题</button>`;
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll(".addIdea").forEach(b=>b.addEventListener("click",()=>{
+    const t=b.parentElement.querySelector(".hottitle").textContent;
+    const item=document.createElement("div");item.className="item";
+    item.innerHTML=`<div class="t">${t}</div><div class="why">AI 建议角度：从热榜情绪切入，结合个人经历（待补充）</div>
+      <div class="row"><button class="btn sm primary gotoEditor">开始写作</button><span class="src">来源：手动收藏 · 刚刚</span></div>`;
+    document.getElementById("ideaBox").prepend(item);
+    item.querySelector(".gotoEditor").addEventListener("click",()=>document.querySelector('.rail button[data-view="vEditor"]').click());
+    showToast(`已加入选题：${t}`);
+  }));
+}
+document.querySelectorAll("[data-board]").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("[data-board]").forEach(x=>x.classList.toggle("on",x===b));renderBoard(b.dataset.board);
+}));
+renderBoard("weibo");
+document.getElementById("refreshHot").addEventListener("click",()=>showToast("已从本地内嵌 DailyHot 服务刷新（无外部服务器）"));
+
+/* ---------- 选题 Agent：关键词 → 相关话题 ---------- */
+document.getElementById("genTopics").addEventListener("click",()=>{
+  const kw=document.getElementById("topicKw").value.trim()||"班味";
+  const ideas=[
+    [`${kw}背后，是被外包的情绪劳动`,"角度：经济学切口——为什么情绪消耗不算工时","选题Agent · 检索到 3 篇相关论文 + 2 条热榜"],
+    [`反向观察：为什么有人以“没有班味”为荣`,"角度：对立视角，写“去班味”穿搭与社交表演","选题Agent · 小红书高热笔记聚合"],
+    [`${kw}简史：一个词如何三个月统治全网`,"角度：词源考古 + 传播链路复盘","选题Agent · 微博首发帖已定位"]
+  ];
+  ideas.forEach(([t,why,src])=>{
+    const item=document.createElement("div");item.className="item";
+    item.innerHTML=`<div class="t">${t}</div><div class="why">${why}</div>
+      <div class="row"><button class="btn sm primary gotoEditor">开始写作</button><button class="btn sm ig2">不采纳</button><span class="src">${src}</span></div>`;
+    document.getElementById("ideaBox").prepend(item);
+    item.querySelector(".gotoEditor").addEventListener("click",()=>document.querySelector('.rail button[data-view="vEditor"]').click());
+    item.querySelector(".ig2").addEventListener("click",()=>{item.style.opacity=".45";item.querySelector(".ig2").remove();});
+  });
+  showToast(`选题 Agent 已生成 3 个“${kw}”相关话题（热榜聚合+联网检索）—— 采纳与否由你决定`);
+});
+
+/* ---------- 配图来源切换（演示） ---------- */
+document.querySelectorAll(".srctabs").forEach(tabs=>{
+  tabs.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    tabs.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+    showToast(`已切到「${b.textContent}」来源，配图 Agent 将按同一槽位提示词重新出候选（演示）`);
+  }));
+});
+
+/* ---------- 段落块 & 文档状态 ---------- */
+const doc=[
+  {id:1,kind:"段落",text:"你有没有发现，现在年轻人打招呼的方式变了。“吃了吗”已经退场，一句“今天班味重吗”就能瞬间拉近距离。这种默契背后，其实是一种新的身份认同。",flag:false,manual:true},
+  {id:2,kind:"小标题",text:"班味，是打工人自己的方言",flag:false,manual:true},
+  {id:3,kind:"段落",text:"班味不是疲惫本身，而是被工位驯化出来的气质：走路快、回消息秒、下班后在便利店门口坐十分钟才起身。它之所以成为暗号，是因为它精准得近乎残忍——每个人都在这三个字里认出了自己。",flag:true,manual:false},
+  {id:4,kind:"引用",text:"“辞退我的不是公司，是我身上洗不掉的班味。”",flag:false,manual:true},
+  {id:5,kind:"小标题",text:"为什么它偏偏今年爆火",flag:false,manual:true},
+  {id:6,kind:"段落",text:"第一，职场内容的情绪表达正在从抱怨转向自嘲；第二，短视频让“气质外化”变得可拍可演；第三，年轻人需要一个既不卖惨也不打鸡血的中间叙事。班味恰好同时满足了这三点。",flag:true,manual:false},
+  {id:7,kind:"段落",text:"更重要的是，它让分散的个体经验第一次拥有了公共词汇。当一个人说“我身上有班味”时，他其实是在说：我看见了你，你也看见了我。",flag:false,manual:true}
+];
+const blockList=document.getElementById("blockList");
+function renderBlocks(){
+  blockList.innerHTML="";
+  doc.forEach((b,i)=>{
+    const li=document.createElement("li");
+    li.className=(b.flag?"flagged ":"")+(b.applied?"applied":"");
+    li.dataset.id=b.id;
+    li.innerHTML=`<span class="grip" title="拖动排序"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+      <span class="kind">${b.manual?"人写":"AI稿"}</span><span class="txt">${b.text}</span>
+      <button class="flagbtn ${b.flag?"on":""}" title="标记回炉（AI 只处理标记段落）" aria-label="标记回炉">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="${b.flag?"currentColor":"none"}" stroke="currentColor" stroke-width="2"><path d="M4 22V4a1 1 0 0 1 1-1h13l-2.5 4L18 12H5a1 1 0 0 0-1 1"/></svg></button>`;
+    li.querySelector(".flagbtn").addEventListener("click",e=>{e.stopPropagation();b.flag=!b.flag;b.applied=false;renderBlocks();});
+    li.addEventListener("click",()=>scrollToBlock(b.id));
+    blockList.appendChild(li);
+  });
+}
+function scrollToBlock(id){
+  const p=document.querySelectorAll("#artBody p, #artBody h3, #artBody blockquote");
+  const map={1:0,2:1,3:2,4:3,5:4,6:5,7:6};
+  const el=p[map[id]];if(el)el.scrollIntoView({behavior:"smooth",block:"center"});
+}
+renderBlocks();
+
+/* ---------- 手动编辑 → 同步回块列表（原型演示：失焦时同步） ---------- */
+document.getElementById("artBody").addEventListener("blur",()=>{
+  const nodes=[...document.querySelectorAll("#artBody p, #artBody h3, #artBody blockquote")];
+  const m={1:0,2:1,3:2,4:3,5:4,6:5,7:6};
+  let changed=false;
+  doc.forEach(b=>{
+    const el=nodes[m[b.id]];
+    if(el && el.textContent.trim() && el.textContent.trim()!==b.text){b.text=el.textContent.trim();b.manual=true;b.applied=false;changed=true;}
+  });
+  if(changed){renderBlocks();showToast("你的手动修改已同步到块列表（人写优先级高于 AI 稿）");}
+},true);
+
+/* ---------- 选区 → 浮动工具条 ---------- */
+const previewScroll=document.getElementById("previewScroll");
+const floatbar=document.getElementById("floatbar");
+const customInput=document.getElementById("customInput");
+previewScroll.addEventListener("mouseup",e=>{
+  setTimeout(()=>{
+    const sel=window.getSelection();
+    if(sel && sel.toString().trim().length>1 && previewScroll.contains(sel.anchorNode)){
+      const rect=sel.getRangeAt(0).getBoundingClientRect();
+      const host=previewScroll.parentElement.getBoundingClientRect();
+      floatbar.style.left=Math.max(6,rect.left-host.left+rect.width/2-floatbar.offsetWidth/2)+"px";
+      floatbar.style.top=(rect.top-host.top-42)+"px";
+      floatbar.classList.add("show");
+      floatbar.dataset.selText=sel.toString().trim();
+    } else if(!floatbar.contains(e.target)){floatbar.classList.remove("show");customInput.classList.remove("show");}
+  },10);
+});
+document.getElementById("customReq").addEventListener("click",()=>{customInput.classList.toggle("show");customInput.focus();});
+customInput.addEventListener("keydown",e=>{if(e.key==="Enter"&&customInput.value.trim()){makeSuggestion("自定义要求："+customInput.value.trim(),floatbar.dataset.selText,customInput.value.trim());customInput.value="";customInput.classList.remove("show");floatbar.classList.remove("show");}});
+floatbar.querySelectorAll("button[data-act]").forEach(b=>b.addEventListener("click",()=>{
+  makeSuggestion(b.dataset.act,floatbar.dataset.selText);floatbar.classList.remove("show");
+}));
+function rewrite(text,act){
+  if(act==="更口语"||act==="去AI味")return text.replace("你有没有发现，","不知道你有没有注意到，").replace("这种默契背后，其实是一种新的身份认同。","说白了，这是大家第一次拥有了共同的暗语。").replace("第一，","一个是").replace("；第二，","，一个是").replace("；第三，","，还有一个是").replace("它之所以成为暗号，是因为它精准得近乎残忍","它能当暗号，是因为它准得有点残忍");
+  if(act==="缩短")return text.length>40?text.slice(0,Math.round(text.length*0.6))+"……（压缩后约6成篇幅）":text;
+  if(act==="展开")return text+"（AI 建议在此补一个你的真实案例位：______）";
+  if(act==="换个例子")return text.replace("便利店门口坐十分钟才起身","地铁坐过站才反应过来");
+  return text.replace("，","，说直白点，",1);
+}
+/* ---------- 建议卡片（核心 HITL） ---------- */
+const suggBox=document.getElementById("suggBox");let suggId=0;
+function makeSuggestion(action,selText,custom){
+  if(!selText){showToast("先在预览里选中一段文字 —— AI 只改你圈定的范围");return;}
+  const oldT=selText;const newT=rewrite(selText,action.replace("自定义要求：",""))||selText+"（改写）";
+  const card=document.createElement("div");card.className="sugg";const id=++suggId;
+  card.innerHTML=`<div class="sh"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><rect x="8" y="8" width="8" height="8" rx="2"/></svg>
+      <b>${action}</b><span class="target">选区 · ${oldT.slice(0,10)}…</span></div>
+    <div class="diff"><span class="old">${oldT}</span><br><span class="new">${newT}</span></div>
+    <div class="note">只圈定你选中的部分；应用前原文不受影响。可点“改一处”在应用后再手动编辑。</div>
+    <div class="acts"><button class="btn sm primary ap">应用到该段</button><button class="btn sm ig">忽略</button><span class="res"></span></div>`;
+  suggBox.prepend(card);
+  const res=card.querySelector(".res");
+  card.querySelector(".ap").addEventListener("click",()=>{
+    const paras=[...document.querySelectorAll("#artBody p, #artBody h3, #artBody blockquote")];
+    const target=paras.find(p=>p.textContent.includes(oldT.slice(0,12)));
+    if(target){target.classList.remove("mutanime");void target.offsetWidth;target.classList.add("mutanime");}
+    const b=doc.find(d=>oldT.slice(0,10).includes(d.text.slice(0,10))||d.text.includes(oldT.slice(0,12)));
+    if(b){b.text=newT;b.applied=true;b.flag=false;renderBlocks();}
+    if(target){const tn=(target.tagName==="P"||target.tagName==="BLOCKQUOTE")?document.createTextNode(newT):null;if(tn){target.textContent="";target.appendChild(tn);}}
+    card.classList.add("applied");res.textContent="已应用 · 快照已存";card.querySelector(".ap").disabled=true;
+    showToast("已应用到所选段落，原文快照已保存",undo,"撤销");
+  });
+  card.querySelector(".ig").addEventListener("click",()=>{card.classList.add("dismissed");res.textContent="已忽略（不影响正文）";});
+  return card;
+}
+function undo(){showToast("已回退到上一版快照（演示）");}
+
+/* ---------- 流水线按钮（批量但仍是逐段建议） ---------- */
+document.querySelectorAll("[data-gen]").forEach(b=>b.addEventListener("click",()=>{
+  if(b.dataset.gen==="flagged"){
+    const flagged=doc.filter(d=>d.flag);
+    if(!flagged.length){showToast("没有带旗标的段落 —— 在左栏点旗子标记要回炉的段落");return;}
+    flagged.forEach(d=>makeSuggestion("回炉：旗标段落 "+d.kind,d.text));
+    showToast(`已为 ${flagged.length} 个旗标段落生成建议 —— 逐张卡片放行，不自动改动`);
+  }else{
+    const c=makeSuggestion("去AI味","第一，职场内容的情绪表达正在从抱怨转向自嘲；第二，短视频让“气质外化”变得可拍可演；第三，年轻人需要一个既不卖惨也不打鸡血的中间叙事。");
+    c.querySelector(".note").textContent="扫描结果：排比+总起句式是最大 AI 指纹。此处给出一处示范改写；全文改写会被拆成多张卡片，绝无“一键重写全文”。";
+    showToast("全文扫描完成：4 处疑似 AI 味，均以建议卡片呈现，逐条由你决定");
+  }
+}));
+document.getElementById("genFlow").addEventListener("click",()=>{
+  document.querySelector('[data-gen="aitone"]').click();
+});
+
+/* ---------- 配图确认（审批门） ---------- */
+document.querySelectorAll(".confirmImg").forEach(b=>b.addEventListener("click",()=>{
+  const chip=b.closest(".mapcard").querySelector(".statechip");
+  chip.className="statechip ok";chip.textContent="已确认";b.remove();
+  const badge=document.querySelector('.rail .badge');const n=+badge.textContent-1;
+  if(n<=0)badge.remove();else badge.textContent=n;
+  showToast("该配图已确认。全部槽位确认前，发布队列会保持锁定");
+}));
+
+/* ---------- 重试发布（失败审批门演示） ---------- */
+document.getElementById("retryPub").addEventListener("click",()=>showToast("重试成功：已调用 freepublish（演示）"));
+
+/* ---------- 设置弹窗 ---------- */
+const overlay=document.getElementById("settingsOverlay");
+const openS=()=>{overlay.classList.add("show");overlay.querySelector(".iconbtn").focus();};
+const closeS=()=>overlay.classList.remove("show");
+document.getElementById("btnSettings").addEventListener("click",openS);
+document.getElementById("closeSettings").addEventListener("click",closeS);
+document.getElementById("cancelSettings").addEventListener("click",closeS);
+overlay.addEventListener("click",e=>{if(e.target===overlay)closeS();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeS();});
+document.getElementById("saveSettings").addEventListener("click",()=>{closeS();showToast("设置已保存（密钥写入 Windows 凭据管理器）");});
+document.querySelectorAll(".mtabs button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".mtabs button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll(".mbody").forEach(m=>m.classList.toggle("on",m.id==="mtab-"+b.dataset.mtab));
+}));
+document.querySelectorAll(".switch").forEach(s=>s.addEventListener("click",()=>{
+  const on=!s.classList.contains("on");s.classList.toggle("on",on);s.setAttribute("aria-checked",on);
+}));
+document.getElementById("connTest").addEventListener("click",()=>showToast("自检：token 获取 OK · 草稿接口 OK · 发布接口 OK（演示）"));
+</script>
+</body>
+</html>

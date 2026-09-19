@@ -1,0 +1,31 @@
+{
+  "name": "gaojiang",
+  "version": "0.1.0",
+  "description": "稿匠 · 公众号 AI 创作单机工具",
+  "main": "main.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "check": "node scripts/check-wechat.mjs"
+  },
+  "license": "MIT",
+  "author": "稿匠",
+  "build": {
+    "appId": "com.gaojiang.desktop",
+    "productName": "稿匠",
+    "directories": { "output": "release" },
+    "asar": false,
+    "files": ["main.cjs", "preload.cjs", "lib/**", "renderer/**", "package.json"],
+    "win": {
+      "target": ["portable"],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "gaojiang-${version}-portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^26.15.3"
+  }
+}

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>稿匠</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo">稿</span> 稿匠</div>
+  <nav class="tabs" role="tablist">
+    <button class="tab on" data-tab="write">写作</button>
+    <button class="tab" data-tab="images">配图</button>
+    <button class="tab" data-tab="publish">发布</button>
+    <button class="tab" data-tab="settings">设置</button>
+  </nav>
+  <div class="topright">
+    <span id="ipChip" class="chip" title="点击刷新公网IP">IP: 未探测</span>
+    <span id="apiChip" class="chip">未自检</span>
+  </div>
+</header>
+
+<!-- ================= 写作 ================= -->
+<main id="view-write" class="view on">
+  <aside class="pane left">
+    <div class="panehead"><b>文章</b><button id="btnNew" class="btn sm">+ 新建</button></div>
+    <ul id="articleList" class="alist"></ul>
+  </aside>
+
+  <section class="pane center">
+    <div class="toolbar">
+      <input id="fTitle" class="title-input" placeholder="文章标题">
+      <select id="fTheme" class="btn sm">
+        <option>青竹绿</option><option>杂志灰</option><option>暖橙手账</option>
+      </select>
+      <button id="btnGenDraft" class="btn sm ai">AI 生成初稿</button>
+      <span id="aiScore" class="chip" title="规则打分：套话/排比/句长均匀度">AI味 --</span>
+      <span class="spacer"></span>
+      <span id="saveState" class="muted">未保存</span>
+      <button id="btnSave" class="btn sm primary">保存</button>
+    </div>
+    <div class="editorwrap">
+      <textarea id="editor" placeholder="用 Markdown 写作。&#10;AI 初稿会在情绪转折处插入 [图槽: 配图意图]。&#10;本地图片：![](文件名) —— 在「配图」页选图自动插入。" spellcheck="false"></textarea>
+      <div class="split"></div>
+      <div id="preview" class="preview wrapcol"></div>
+    </div>
+  </section>
+
+  <aside class="pane right">
+    <div class="rtabs">
+      <button class="on" data-rt="sel">AI 改写</button>
+      <button data-rt="blocks">段落回炉</button>
+      <button data-rt="check">体检</button>
+    </div>
+
+    <div id="rt-sel" class="rbody on">
+      <p class="muted small">先在左侧正文里<b>选中一段文字</b>，AI 只改你圈定的范围。</p>
+      <div class="abtns">
+        <button class="btn sm" data-task="口语化">更口语</button>
+        <button class="btn sm" data-task="缩短">缩短</button>
+        <button class="btn sm" data-task="展开">展开</button>
+        <button class="btn sm" data-task="去AI味">去AI味</button>
+        <button class="btn sm" data-task="换例子">换例子</button>
+      </div>
+      <div class="customrow">
+        <input id="customNote" placeholder="自定义要求，如：别用排比，加句自嘲">
+        <button id="btnCustom" class="btn sm ai">按要求改写</button>
+      </div>
+      <div id="suggList" class="suggs"></div>
+    </div>
+
+    <div id="rt-blocks" class="rbody">
+      <p class="muted small">勾选要回炉的段落 → AI 逐段给建议，仍是一一放行。</p>
+      <div id="blockList" class="blocks"></div>
+      <button id="btnFlagged" class="btn ai" style="width:100%;margin-top:8px">回炉勾选段落（生成建议卡片）</button>
+    </div>
+
+    <div id="rt-check" class="rbody">
+      <div class="checkhead"><b>AI 味评分</b><span id="scoreBig" class="scorebig">--</span></div>
+      <ul id="scoreDetail" class="ticks"></ul>
+      <div class="checkhead" style="margin-top:14px"><b>发布前审核</b><button id="btnAudit" class="btn sm">运行审核 Agent</button></div>
+      <ul id="auditList" class="ticks"></ul>
+    </div>
+  </aside>
+</main>
+
+<!-- ================= 配图 ================= -->
+<main id="view-images" class="view">
+  <div class="page">
+    <div class="pagehead"><h2>配图地图</h2><span class="muted small">槽位来自正文中的 [图槽: …]；提示词由 AI 按上下文生成；选图后自动替换槽位</span></div>
+    <div id="slotList" class="slots"></div>
+    <div id="imgWarn" class="warnbox" style="display:none"></div>
+  </div>
+</main>
+
+<!-- ================= 发布 ================= -->
+<main id="view-publish" class="view">
+  <div class="page">
+    <div class="pagehead"><h2>发布</h2><span class="muted small">单机定时：到点时电脑需开机联网；默认到点提醒、由你最终放行</span></div>
+    <div class="pubnow card">
+      <b>当前文章</b>
+      <div class="pubrow">
+        <span id="pubTitle" class="muted">（未选择文章）</span>
+        <span class="spacer"></span>
+        <button id="btnToDraft" class="btn">立即送草稿箱</button>
+        <button id="btnPubNow" class="btn primary">立即发布</button>
+        <input type="datetime-local" id="schedAt" class="btn sm">
+        <button id="btnSched" class="btn ai">定时（先草稿后确认）</button>
+      </div>
+      <div id="pubResult" class="small"></div>
+    </div>
+    <div class="pagehead"><h2>定时队列</h2><button id="btnQueueRefresh" class="btn sm ghost">刷新</button></div>
+    <div id="queueList"></div>
+  </div>
+</main>
+
+<!-- ================= 设置 ================= -->
+<main id="view-settings" class="view">
+  <div class="page narrow">
+    <div class="card">
+      <b>AI 服务（OpenAI 兼容）</b>
+      <div class="grid2">
+        <label>Base URL<input id="sBaseUrl" placeholder="https://api.deepseek.com/v1"></label>
+        <label>模型<input id="sModel" placeholder="deepseek-chat"></label>
+        <label>API Key<input id="sAiKey" type="password" placeholder="留空=不修改"></label>
+      </div>
+      <p class="muted small">密钥经 Windows DPAPI 加密保存在本机，不会上传任何服务器。</p>
+    </div>
+    <div class="card">
+      <b>微信公众号</b>
+      <div class="grid2">
+        <label>AppID<input id="sAppId"></label>
+        <label>AppSecret<input id="sAppSecret" type="password" placeholder="留空=不修改"></label>
+      </div>
+      <div class="pubrow">
+        <button id="btnSaveSettings" class="btn primary">保存</button>
+        <button id="btnSelfTest" class="btn">连通性自检</button>
+        <button id="btnIp" class="btn ghost">探测公网 IP</button>
+      </div>
+      <ul id="testResult" class="ticks"></ul>
+    </div>
+    <div class="card">
+      <b>发布行为</b>
+      <label class="ckl"><input type="checkbox" id="sConfirm"> 定时到点仅提醒，最终「发布」由我确认（推荐）</label>
+      <label class="ckl"><input type="checkbox" id="sRetry"> 失败自动重试（≤3 次，间隔 5 分钟）</label>
+    </div>
+    <div class="card">
+      <b>个人素材库（活人感弹药）</b>
+      <p class="muted small">你的经历/口头禅/立场。去 AI 味改写时 AI 会引用这些真实材料。</p>
+      <div id="matList"></div>
+      <div class="customrow">
+        <select id="matType"><option>经历</option><option>口头禅</option><option>观点立场</option><option>案例</option></select>
+        <input id="matText" placeholder="例：2023年裸辞去大理住了三个月">
+        <button id="btnMatAdd" class="btn sm ai">添加</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
