@@ -18,10 +18,26 @@ function notify(title, body) {
 function createWindow(preloadPath) {
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 960, minHeight: 600,
-    title: "稿匠", backgroundColor: "#eef0f3", autoHideMenuBar: true,
+    title: "稿匠", backgroundColor: "#f5f6f8", autoHideMenuBar: true,
     webPreferences: { preload: preloadPath, contextIsolation: true, nodeIntegration: false },
   });
-  win.loadFile(path.join(__dirname, "..", "ui", "index.html"));
+  const gjTab = (process.argv.find((a) => String(a).startsWith("--gj-tab=")) || "").split("=")[1];
+  win.loadFile(path.join(__dirname, "..", "ui", "index.html"), gjTab ? { hash: gjTab } : undefined);
+  if (process.env.GJ_SHOT) {
+    // 开发自检模式：加载完成后自截图到该路径并退出（供无头验证界面真实渲染）
+    win.webContents.once("did-finish-load", () => setTimeout(async () => {
+      try {
+        win.show(); win.focus();
+        await new Promise((r) => setTimeout(r, 600));
+        for (let i = 0; i < 6; i++) { // capturePage 偶发返回空图，重试直到拿到有效 PNG
+          const buf = (await win.capturePage()).toPNG();
+          if (buf.length > 1000) { require("fs").writeFileSync(process.env.GJ_SHOT, buf); console.log("GJ_SHOT saved: " + process.env.GJ_SHOT + " (" + buf.length + "B)"); break; }
+          await new Promise((r) => setTimeout(r, 700));
+        }
+      } catch (e) { console.error("GJ_SHOT failed", e); }
+      isQuitting = true; app.quit();
+    }, 4000));
+  }
   win.on("close", (e) => {
     // 关窗不退出：调度器需常驻托盘继续盯定时任务
     if (!isQuitting && tray) { e.preventDefault(); win.hide(); }

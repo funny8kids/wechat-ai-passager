@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("api", {
   render: (md, theme) => ipcRenderer.invoke("preview:render", { md, theme }),
   pickImage: () => ipcRenderer.invoke("dialog:pickImage"),
   importAsset: (srcPath) => ipcRenderer.invoke("assets:import", srcPath),
+  assetDataUrl: (name) => ipcRenderer.invoke("asset:dataUrl", name),
   // 微信
   wxSelfTest: () => ipcRenderer.invoke("wx:selftest"),
   wxSaveDraft: (article) => ipcRenderer.invoke("wx:saveDraft", article),

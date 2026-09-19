@@ -59,6 +59,16 @@ function registerIpc({ ipcMain, dialog, lib, services, pipeline, getScheduled, g
     await fs.copyFile(srcPath, path.join(store.dir, "assets", name));
     return name; // 相对 assets 目录的文件名，md 中写 ![](assets名)
   });
+  ipcMain.handle("asset:dataUrl", async (e, name) => {
+    const base = path.basename(String(name || "")); // 防目录穿越：只认 assets 下文件名
+    const mime = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" }[base.split(".").pop()?.toLowerCase()];
+    if (!mime) return null;
+    try {
+      const buf = await fs.readFile(path.join(store.dir, "assets", base));
+      if (buf.length > 12_000_000) return null;
+      return `data:${mime};base64,${buf.toString("base64")}`;
+    } catch { return null; }
+  });
 
   // ---------- 微信 ----------
   ipcMain.handle("wx:selftest", async () => {

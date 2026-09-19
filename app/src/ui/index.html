@@ -2,47 +2,105 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>稿匠</title>
+<title>稿匠 · 公众号 AI 创作工作台</title>
 <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="brand"><span class="logo">稿</span> 稿匠</div>
-  <nav class="tabs" role="tablist">
-    <button class="tab on" data-tab="write">写作</button>
-    <button class="tab" data-tab="images">配图</button>
-    <button class="tab" data-tab="publish">发布</button>
-    <button class="tab" data-tab="settings">设置</button>
-  </nav>
-  <div class="topright">
-    <span id="ipChip" class="chip" title="点击刷新公网IP">IP: 未探测</span>
-    <span id="apiChip" class="chip">未自检</span>
-  </div>
-</header>
 
-<!-- ================= 写作 ================= -->
+<!-- SVG 图标库（lucide 风格，stroke=currentColor） -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-write" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9Z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-edit2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></symbol>
+  <symbol id="i-cols" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 4 5 5"/><path d="M4 20 16.5 7.5a1 1 0 0 1 1.5 0l.5.5a1 1 0 0 1 0 1.5L6 22Z" transform="translate(0 -2.5)"/></symbol>
+</svg>
+
+<!-- ============ 左侧导航栏（工具型外壳，OBS/VSCode 式） ============ -->
+<aside class="rail">
+  <div class="rail-logo" title="稿匠"><svg width="22" height="22"><use href="#i-bookmark"/></svg></div>
+  <nav class="rail-nav" role="tablist" aria-label="主导航">
+    <button class="tab on" data-tab="write" title="写作台"><svg><use href="#i-write"/></svg><span>写作</span></button>
+    <button class="tab" data-tab="images" title="配图地图"><svg><use href="#i-image"/></svg><span>配图</span></button>
+    <button class="tab" data-tab="publish" title="发布与定时"><svg><use href="#i-send"/></svg><span>发布</span></button>
+  </nav>
+  <div class="rail-bottom">
+    <button class="tab" data-tab="settings" title="设置"><svg><use href="#i-settings"/></svg><span>设置</span></button>
+  </div>
+</aside>
+
+<div class="app">
+<!-- ================= 写作工作台 ================= -->
 <main id="view-write" class="view on">
   <aside class="pane left">
-    <div class="panehead"><b>文章</b><button id="btnNew" class="btn sm">+ 新建</button></div>
+    <div class="panehead">
+      <b>文章库</b>
+      <button id="btnNew" class="btn sm" title="新建文章（Ctrl+N）"><svg class="ic"><use href="#i-plus"/></svg>新建</button>
+    </div>
+    <div class="searchbox"><svg class="ic"><use href="#i-search"/></svg><input id="articleSearch" placeholder="搜索标题…" aria-label="搜索文章"></div>
     <ul id="articleList" class="alist"></ul>
   </aside>
 
   <section class="pane center">
-    <div class="toolbar">
-      <input id="fTitle" class="title-input" placeholder="文章标题">
-      <select id="fTheme" class="btn sm">
-        <option>青竹绿</option><option>杂志灰</option><option>暖橙手账</option>
-      </select>
-      <button id="btnGenDraft" class="btn sm ai">AI 生成初稿</button>
-      <span id="aiScore" class="chip" title="规则打分：套话/排比/句长均匀度">AI味 --</span>
+    <header class="dochead">
+      <input id="fTitle" class="title-input" placeholder="无标题文章（点击输入标题）" aria-label="文章标题">
+      <div class="docmeta">
+        <select id="fTheme" class="select sm" title="排版主题" aria-label="排版主题">
+          <option>青竹绿</option><option>杂志灰</option><option>暖橙手账</option>
+        </select>
+        <span id="wordCount" class="meta-chip">0 字</span>
+        <span id="aiScore" class="chip" title="AI味评分：套话/排比/句长均匀度，越低越像真人">AI味 --</span>
+        <span class="spacer"></span>
+        <button id="btnGenDraft" class="btn ai sm"><svg class="ic"><use href="#i-sparkles"/></svg>AI 生成初稿</button>
+      </div>
+    </header>
+
+    <div class="toolbar" role="toolbar" aria-label="格式工具">
+      <div class="tgroup">
+        <button class="tbtn" data-md="bold" title="加粗 Ctrl+B"><b>B</b></button>
+        <button class="tbtn" data-md="italic" title="斜体 Ctrl+I"><i>I</i></button>
+        <button class="tbtn" data-md="h2" title="二级标题">H2</button>
+        <button class="tbtn" data-md="h3" title="三级标题">H3</button>
+        <button class="tbtn" data-md="quote" title="引用">❝</button>
+        <button class="tbtn" data-md="ul" title="无序列表">≔</button>
+        <button class="tbtn" data-md="code" title="行内代码">&lt;/&gt;</button>
+        <button class="tbtn" data-md="link" title="链接">↗</button>
+      </div>
+      <span class="tsep"></span>
+      <div class="tgroup">
+        <button class="tbtn wide" data-md="slot" title="在光标处插入配图槽位">图槽</button>
+      </div>
       <span class="spacer"></span>
-      <span id="saveState" class="muted">未保存</span>
-      <button id="btnSave" class="btn sm primary">保存</button>
+      <div class="tgroup">
+        <button id="btnCopyRich" class="tbtn wide" title="把右侧预览复制为富文本，可直接粘贴进公众号后台（无需 API 权限）"><svg class="ic"><use href="#i-copy"/></svg>复制富文本</button>
+      </div>
+      <span class="tsep"></span>
+      <div class="tgroup layout-switch" role="group" aria-label="布局切换">
+        <button class="tbtn lay" data-layout="edit" title="仅编辑"><svg class="ic"><use href="#i-edit2"/></svg></button>
+        <button class="tbtn lay" data-layout="split" title="编辑 + 预览"><svg class="ic"><use href="#i-cols"/></svg></button>
+        <button class="tbtn lay" data-layout="preview" title="仅预览（公众号效果）"><svg class="ic"><use href="#i-eye"/></svg></button>
+      </div>
     </div>
-    <div class="editorwrap">
-      <textarea id="editor" placeholder="用 Markdown 写作。&#10;AI 初稿会在情绪转折处插入 [图槽: 配图意图]。&#10;本地图片：![](文件名) —— 在「配图」页选图自动插入。" spellcheck="false"></textarea>
-      <div class="split"></div>
-      <div id="preview" class="preview wrapcol"></div>
+
+    <div class="editorwrap layout-split">
+      <div class="edcol"><textarea id="editor" placeholder="&#10;用 Markdown 写作，右侧实时预览公众号排版效果。&#10;&#10;· 顶栏「AI 生成初稿」按选题生成带 [图槽] 的骨架&#10;· 选中一段文字 → 右栏 AI 只改你圈定的范围&#10;· 「配图」页逐槽落图；「发布」页由你最终放行" spellcheck="false"></textarea></div>
+      <div class="split" id="splitter"></div>
+      <div id="preview" class="preview"><div class="phoneish"></div></div>
     </div>
   </section>
 
@@ -50,11 +108,11 @@
     <div class="rtabs">
       <button class="on" data-rt="sel">AI 改写</button>
       <button data-rt="blocks">段落回炉</button>
-      <button data-rt="check">体检</button>
+      <button data-rt="check">审校</button>
     </div>
 
     <div id="rt-sel" class="rbody on">
-      <p class="muted small">先在左侧正文里<b>选中一段文字</b>，AI 只改你圈定的范围。</p>
+      <p class="hint"><svg class="ic"><use href="#i-wand"/></svg><span>先在正文里<b>选中一段文字</b>——AI 只改你圈定的范围，改完以建议卡片呈现，应用与否你说了算。</span></p>
       <div class="abtns">
         <button class="btn sm" data-task="口语化">更口语</button>
         <button class="btn sm" data-task="缩短">缩短</button>
@@ -70,46 +128,56 @@
     </div>
 
     <div id="rt-blocks" class="rbody">
-      <p class="muted small">勾选要回炉的段落 → AI 逐段给建议，仍是一一放行。</p>
+      <p class="hint"><svg class="ic"><use href="#i-wand"/></svg><span>勾选要回炉的段落，AI 逐段给建议；<b>没勾选的段落一个字节都不会动</b>。</span></p>
       <div id="blockList" class="blocks"></div>
       <button id="btnFlagged" class="btn ai" style="width:100%;margin-top:8px">回炉勾选段落（生成建议卡片）</button>
     </div>
 
     <div id="rt-check" class="rbody">
-      <div class="checkhead"><b>AI 味评分</b><span id="scoreBig" class="scorebig">--</span></div>
+      <div class="scorecard">
+        <div class="sc-ring"><span id="scoreBig">--</span></div>
+        <div class="sc-txt"><b>AI 味评分</b><span class="muted small">0 最像真人 · 100 机器腔。<br>低于 30 可放心发。</span></div>
+      </div>
       <ul id="scoreDetail" class="ticks"></ul>
-      <div class="checkhead" style="margin-top:14px"><b>发布前审核</b><button id="btnAudit" class="btn sm">运行审核 Agent</button></div>
+      <div class="checkhead"><b>发布前审核</b><button id="btnAudit" class="btn sm">运行审核 Agent</button></div>
       <ul id="auditList" class="ticks"></ul>
     </div>
   </aside>
 </main>
 
-<!-- ================= 配图 ================= -->
+<!-- ================= 配图地图 ================= -->
 <main id="view-images" class="view">
-  <div class="page">
-    <div class="pagehead"><h2>配图地图</h2><span class="muted small">槽位来自正文中的 [图槽: …]；提示词由 AI 按上下文生成；选图后自动替换槽位</span></div>
-    <div id="slotList" class="slots"></div>
+  <div class="page wide">
+    <div class="pagehead">
+      <div><h2>配图地图</h2><p class="muted small">正文里的 <code>[图槽: 意图]</code> 会出现在这里 —— AI 按上下文生成画面提示词，逐张确认后落图。外链网图会被微信过滤且有版权风险，务必换成本地图。</p></div>
+    </div>
     <div id="imgWarn" class="warnbox" style="display:none"></div>
+    <div id="slotList" class="slots"></div>
   </div>
 </main>
 
 <!-- ================= 发布 ================= -->
 <main id="view-publish" class="view">
   <div class="page">
-    <div class="pagehead"><h2>发布</h2><span class="muted small">单机定时：到点时电脑需开机联网；默认到点提醒、由你最终放行</span></div>
-    <div class="pubnow card">
-      <b>当前文章</b>
-      <div class="pubrow">
-        <span id="pubTitle" class="muted">（未选择文章）</span>
-        <span class="spacer"></span>
-        <button id="btnToDraft" class="btn">立即送草稿箱</button>
-        <button id="btnPubNow" class="btn primary">立即发布</button>
-        <input type="datetime-local" id="schedAt" class="btn sm">
-        <button id="btnSched" class="btn ai">定时（先草稿后确认）</button>
-      </div>
-      <div id="pubResult" class="small"></div>
+    <div class="pagehead"><div><h2>发布</h2><p class="muted small">单机定时：到点需电脑开机联网。默认「到点提醒 → 你放行」，AI 和你点过确认的内容才会进入微信。</p></div></div>
+    <div class="flow">
+      <div class="step"><i>1</i><b>图片转存</b><span>本地图自动上传为微信 CDN 素材</span></div>
+      <div class="step"><i>2</i><b>推入草稿箱</b><span>在公众号后台可见、可再改</span></div>
+      <div class="step"><i>3</i><b>人工放行</b><span>你点「确认发布」才真正提交</span></div>
+      <div class="step"><i>4</i><b>微信生效</b><span>平台审核数分钟后群发</span></div>
     </div>
-    <div class="pagehead"><h2>定时队列</h2><button id="btnQueueRefresh" class="btn sm ghost">刷新</button></div>
+    <div class="card pubnow">
+      <div class="cardhead"><b>当前文章</b><span id="pubTitle" class="muted">（未选择文章）</span></div>
+      <div class="pubrow">
+        <button id="btnToDraft" class="btn lg"><svg class="ic"><use href="#i-bookmark"/></svg>立即送草稿箱</button>
+        <button id="btnPubNow" class="btn primary lg"><svg class="ic"><use href="#i-send"/></svg>立即发布</button>
+        <span class="tsep"></span>
+        <label class="datelabel"><svg class="ic"><use href="#i-clock"/></svg><input type="datetime-local" id="schedAt" aria-label="定时发布时间"></label>
+        <button id="btnSched" class="btn ai lg">定时发布（先草稿后确认）</button>
+      </div>
+      <div id="pubResult" class="small pubresult"></div>
+    </div>
+    <div class="pagehead"><h2 class="h3ish">定时队列</h2><button id="btnQueueRefresh" class="btn sm ghost" title="刷新队列"><svg class="ic"><use href="#i-refresh"/></svg>刷新</button></div>
     <div id="queueList"></div>
   </div>
 </main>
@@ -117,49 +185,62 @@
 <!-- ================= 设置 ================= -->
 <main id="view-settings" class="view">
   <div class="page narrow">
+    <div class="pagehead"><div><h2>设置</h2><p class="muted small">所有密钥经 Windows DPAPI 加密保存在本机，不上传任何服务器；换机需重填。</p></div></div>
     <div class="card">
-      <b>AI 服务（OpenAI 兼容）</b>
+      <div class="cardhead"><b><svg class="ic ai"><use href="#i-sparkles"/></svg>AI 服务（OpenAI 兼容）</b></div>
       <div class="grid2">
         <label>Base URL<input id="sBaseUrl" placeholder="https://api.deepseek.com/v1"></label>
-        <label>模型<input id="sModel" placeholder="deepseek-chat"></label>
-        <label>API Key<input id="sAiKey" type="password" placeholder="留空=不修改"></label>
+        <label>模型<input id="sModel" placeholder="deepseek-v4-pro"></label>
+        <label class="span2">API Key<input id="sAiKey" type="password" placeholder="留空=不修改" autocomplete="off"></label>
       </div>
-      <p class="muted small">密钥经 Windows DPAPI 加密保存在本机，不会上传任何服务器。</p>
     </div>
     <div class="card">
-      <b>微信公众号</b>
+      <div class="cardhead"><b><svg class="ic wx"><use href="#i-key"/></svg>微信公众号</b><span class="muted small">未认证个人订阅号可能无草稿/发布权限（48001），自检不通时用「复制富文本」发布</span></div>
       <div class="grid2">
-        <label>AppID<input id="sAppId"></label>
-        <label>AppSecret<input id="sAppSecret" type="password" placeholder="留空=不修改"></label>
+        <label>AppID<input id="sAppId" placeholder="wx…" autocomplete="off"></label>
+        <label>AppSecret<input id="sAppSecret" type="password" placeholder="留空=不修改" autocomplete="off"></label>
       </div>
-      <div class="pubrow">
-        <button id="btnSaveSettings" class="btn primary">保存</button>
+      <div class="pubrow" style="margin-top:12px">
+        <button id="btnSaveSettings" class="btn primary"><svg class="ic"><use href="#i-check"/></svg>保存设置</button>
         <button id="btnSelfTest" class="btn">连通性自检</button>
         <button id="btnIp" class="btn ghost">探测公网 IP</button>
       </div>
       <ul id="testResult" class="ticks"></ul>
     </div>
     <div class="card">
-      <b>发布行为</b>
+      <div class="cardhead"><b><svg class="ic"><use href="#i-send"/></svg>发布行为</b></div>
       <label class="ckl"><input type="checkbox" id="sConfirm"> 定时到点仅提醒，最终「发布」由我确认（推荐）</label>
       <label class="ckl"><input type="checkbox" id="sRetry"> 失败自动重试（≤3 次，间隔 5 分钟）</label>
     </div>
     <div class="card">
-      <b>个人素材库（活人感弹药）</b>
-      <p class="muted small">你的经历/口头禅/立场。去 AI 味改写时 AI 会引用这些真实材料。</p>
+      <div class="cardhead"><b><svg class="ic ai"><use href="#i-wand"/></svg>个人素材库 · 活人感弹药</b></div>
+      <p class="muted small">你的真实经历/口头禅/立场。去 AI 味改写时 AI 会引用这些材料，替代编造的案例。写得越具体越好（时间/地点/感受）。</p>
       <div id="matList"></div>
-      <div class="customrow">
-        <select id="matType"><option>经历</option><option>口头禅</option><option>观点立场</option><option>案例</option></select>
-        <input id="matText" placeholder="例：2023年裸辞去大理住了三个月">
+      <div class="customrow" style="margin-top:8px">
+        <select id="matType" class="select"><option>经历</option><option>口头禅</option><option>观点立场</option><option>案例</option></select>
+        <input id="matText" placeholder="例：2023年裸辞去大理住了三个月，每天睡到自然醒反而慌了">
         <button id="btnMatAdd" class="btn sm ai">添加</button>
       </div>
     </div>
   </div>
 </main>
 
+<!-- ============ 底部状态栏 ============ -->
+<footer class="statusbar">
+  <span id="saveState" class="sb-item">未保存</span>
+  <span class="sb-sep"></span>
+  <span class="sb-item muted">定时调度：应用开着就在工作（关窗=托盘驻留）</span>
+  <span class="spacer"></span>
+  <span id="apiChip" class="chip sm">未自检</span>
+  <span id="ipChip" class="chip sm" title="点击刷新公网IP">IP: 未探测</span>
+  <button id="btnSave" class="btn sm" title="保存（Ctrl+S）"><svg class="ic"><use href="#i-check"/></svg>保存</button>
+</footer>
+</div>
+
 <div id="toast" class="toast"></div>
 <script src="js/util.js"></script>
 <script src="js/editor.js"></script>
+<script src="js/workbench.js"></script>
 <script src="js/images.js"></script>
 <script src="js/publish.js"></script>
 <script src="js/settings.js"></script>

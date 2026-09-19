@@ -5,7 +5,7 @@ async function refreshQueue() {
   $("#pubTitle").textContent = cur ? cur.title || "（无题）" : "（未选择文章）";
   const list = await window.api.queueList();
   const box = $("#queueList");
-  if (!list.length) { box.innerHTML = `<p class="muted">队列为空。定时任务到点时会先推草稿箱并弹系统通知，由你最终放行发布。</p>`; return; }
+  if (!list.length) { box.innerHTML = `<div class="empty"><b>队列为空</b><br>在写作页写好文章后，到上方选时间点了「定时发布」<br>到点会先推草稿箱并弹系统通知，最终由你放行</div>`; return; }
   box.innerHTML = "";
   for (const q of list) {
     const div = document.createElement("div");

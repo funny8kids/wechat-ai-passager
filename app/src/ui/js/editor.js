@@ -36,19 +36,30 @@ function openArticle(a) {
 }
 function renderArticleListOnly() {
   const ul = $("#articleList"); ul.innerHTML = "";
+  const q = ($("#articleSearch").value || "").trim().toLowerCase();
   for (const a of articles) {
+    if (q && !((a.title || "").toLowerCase().includes(q) || (a.md || "").toLowerCase().includes(q))) continue;
     const liEl = document.createElement("li");
     liEl.className = cur && a.id === cur.id ? "on" : "";
-    liEl.innerHTML = `<div class="t">${esc(a.title || "无题")}</div><div class="d">${fmtTime(a.updatedAt)} · ${(a.md || "").length} 字</div>`;
+    liEl.innerHTML = `<div class="t">${esc(a.title || "无题")}</div><div class="d">${fmtTime(a.updatedAt)} · ${(a.md || "").length} 字</div>
+      <button class="del" title="删除文章"><svg class="ic"><use href="#i-trash"/></svg></button>`;
     liEl.onclick = () => openArticle(a);
+    liEl.querySelector(".del").onclick = async (ev) => {
+      ev.stopPropagation();
+      if (!confirm(`删除《${a.title || "无题"}》？此操作不可恢复`)) return;
+      await window.api.deleteArticle(a.id);
+      await loadArticles();
+      if (cur && cur.id === a.id) newArticle();
+    };
     ul.appendChild(liEl);
   }
 }
+$("#articleSearch").addEventListener("input", renderArticleListOnly);
 async function saveCur(silent) {
   if (!cur) { toast("请先新建或选择文章"); return; }
   cur.title = $("#fTitle").value.trim(); cur.md = $("#editor").value; cur.theme = $("#fTheme").value;
   await window.api.saveArticle(cur);
-  $("#saveState").textContent = "已保存 " + new Date().toLocaleTimeString("zh-CN");
+  const st = $("#saveState"); st.textContent = "已保存 " + new Date().toLocaleTimeString("zh-CN"); st.classList.remove("dirty");
   await loadArticles();
   if (!silent) toast("已保存到本地库");
 }
@@ -61,7 +72,7 @@ function undoSnapshot() {
   $("#editor").value = snapshots.pop();
   renderPreview(); renderBlocks(); updateScore(); markDirty();
 }
-function markDirty() { $("#saveState").textContent = "未保存"; }
+function markDirty() { const el = $("#saveState"); el.textContent = "未保存"; el.classList.add("dirty"); }
 
 $("#btnNew").onclick = newArticle;
 $("#btnSave").onclick = () => saveCur();
@@ -74,7 +85,11 @@ let _rh;
 function debounceRender() { clearTimeout(_rh); _rh = setTimeout(renderPreview, 350); }
 async function renderPreview() {
   const md = $("#editor").value;
-  const html = await window.api.render(md || "*（开始写作，右侧为公众号样式预览）*", $("#fTheme").value || "青竹绿");
+  if (!md.trim()) {
+    $("#preview").innerHTML = `<div class="phoneish"><div class="pv-empty"><b>公众号排版预览</b><span>开始写作后，这里实时呈现所选主题的成稿效果</span></div></div>`;
+    return;
+  }
+  const html = await window.api.render(md, $("#fTheme").value || "青竹绿");
   $("#preview").innerHTML = `<div class="phoneish">${html}</div>`;
 }
 
@@ -151,6 +166,7 @@ function addSuggestion(name, oldT, newT, blockIdx, selStart, selEnd) {
 const CLICHES = ["总而言之", "综上所述", "值得注意的是", "不难发现", "赋能", "闭环", "抓手", "无独有偶", "在这个快节奏的时代", "在这个信息爆炸", "首先", "其次", "最后", "不仅", "而且", "与此同时", "更重要的是", "可以说"];
 function updateScore() {
   const md = $("#editor").value;
+  updateWordCount(md);
   if (md.length < 40) { $("#aiScore").textContent = "AI味 --"; $("#scoreBig").textContent = "--"; $("#scoreDetail").innerHTML = ""; return; }
   const hits = CLICHES.filter((c) => md.includes(c));
   const sentences = md.split(/[。！？!?；\n]/).map((s) => s.trim()).filter((s) => s.length > 3);
@@ -162,7 +178,9 @@ function updateScore() {
   let score = Math.min(100, Math.round(hits.length * 8 + evenness * 45 + enumHits * 6));
   const el = $("#aiScore"); el.textContent = `AI味 ${score}`;
   el.className = "chip " + (score > 55 ? "bad" : score > 30 ? "" : "ok");
-  $("#scoreBig").textContent = score; $("#scoreBig").style.color = score > 55 ? "var(--err)" : score > 30 ? "var(--warn)" : "var(--accent)";
+  const ringColor = score > 55 ? "var(--err)" : score > 30 ? "var(--warn)" : "var(--accent)";
+  $("#scoreBig").textContent = score; $("#scoreBig").style.color = ringColor;
+  $(".sc-ring").style.borderColor = ringColor;
   $("#scoreDetail").innerHTML =
     li(hits.length ? "warn" : "ok", `套话/列举腔命中 ${hits.length} 个${hits.length ? "：" + hits.slice(0, 6).join("、") : ""}`) +
     li(evenness > 0.6 ? "warn" : "ok", `句长均匀度 ${(evenness * 100) | 0}%（越高越像 AI 的匀速句）`) +
