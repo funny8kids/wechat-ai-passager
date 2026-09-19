@@ -1,7 +1,7 @@
 // 公众号 API 权限自检（M0 地基验证）
 // 用法: node scripts/check-wechat.mjs <AppID> <AppSecret>
 // 或设环境变量 WX_APPID / WX_APPSECRET
-import { WeChatClient } from "../lib/wechat.mjs";
+import { WeChatClient } from "../src/core/wechat.mjs";
 
 const [appId, appSecret] = [process.argv[2] || process.env.WX_APPID, process.argv[3] || process.env.WX_APPSECRET];
 if (!appId || !appSecret) {

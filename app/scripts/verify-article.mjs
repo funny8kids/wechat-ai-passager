@@ -1,7 +1,7 @@
 // 终验脚本：真实走一遍应用生成链路，验证文章质量与系统设计
 // 用法: GJ_AI_KEY=xxx node scripts/verify-article.mjs [选题]
-import { AIClient, AI_TASKS, buildRewriteMessages } from "../lib/ai.mjs";
-import { renderWeChatHtml } from "../lib/md2wechat.mjs";
+import { AIClient, AI_TASKS, buildRewriteMessages } from "../src/core/ai.mjs";
+import { renderWeChatHtml } from "../src/core/md2wechat.mjs";
 
 const KEY = process.env.GJ_AI_KEY;
 if (!KEY) { console.error("缺少 GJ_AI_KEY"); process.exit(1); }

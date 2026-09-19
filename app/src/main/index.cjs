@@ -1,0 +1,93 @@
+// 稿匠 · Electron 主进程入口
+// 职责：应用生命周期、窗口/托盘、依赖装配。业务逻辑在 services / pipeline / ipc 模块中。
+const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, safeStorage, dialog } = require("electron");
+const path = require("path");
+
+const { loadCore } = require("./core-loader.cjs");
+const { createServices } = require("./services.cjs");
+const { createPipeline } = require("./pipeline.cjs");
+const { registerIpc } = require("./ipc.cjs");
+
+let win, tray, scheduler, isQuitting = false;
+
+function notify(title, body) {
+  try { new Notification({ title, body }).show(); } catch {}
+  if (tray) try { tray.displayBalloon({ title, content: body }); } catch {}
+}
+
+function createWindow(preloadPath) {
+  win = new BrowserWindow({
+    width: 1280, height: 800, minWidth: 960, minHeight: 600,
+    title: "稿匠", backgroundColor: "#eef0f3", autoHideMenuBar: true,
+    webPreferences: { preload: preloadPath, contextIsolation: true, nodeIntegration: false },
+  });
+  win.loadFile(path.join(__dirname, "..", "ui", "index.html"));
+  win.on("close", (e) => {
+    // 关窗不退出：调度器需常驻托盘继续盯定时任务
+    if (!isQuitting && tray) { e.preventDefault(); win.hide(); }
+  });
+}
+
+function createTray() {
+  try {
+    const img = nativeImageTray();
+    tray = new Tray(img);
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: "打开稿匠", click: () => { win.show(); win.focus(); } },
+      { label: "退出（停止定时发布）", click: () => { isQuitting = true; app.quit(); } },
+    ]));
+    tray.setToolTip("稿匠 · 定时发布调度运行中");
+  } catch (e) { console.error("tray failed", e); }
+}
+function nativeImageTray() {
+  const { nativeImage } = require("electron");
+  return nativeImage.createFromDataURL(
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAU0lEQVR4nO3OMQEAAAgDoC251a3g4QcM8OSIuV8HWuABHvAAAwYMGDBgwIABAwYMGDBgwIABAwYMGDBgwIABAwYMGDBgwIABAwYMGDBgwIABAwYMGDBgwIABAwYMGDBgwIABjw8v3gHZHfWv9AAAAABJRU5ErkJggg=="
+  );
+}
+
+// ---------- 启动（单实例：定时调度器只允许一个进程持有） ----------
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => { if (win) { win.show(); win.focus(); } });
+  app.whenReady().then(async () => {
+    try {
+      const lib = await loadCore();
+      const services = createServices({
+        lib,
+        safeStorage,
+        dataDir: path.join(app.getPath("userData"), "data"),
+      });
+      await services.init();
+      await services.bootstrapSecretsFromEnv(process.env);
+
+      const pipeline = createPipeline({
+        lib,
+        services,
+        getScheduler: () => scheduler,
+        notify,
+      });
+      scheduler = new lib.Scheduler(services.store, pipeline.runScheduled, (evt) => {
+        if (evt.type === "publish-failed") notify("定时发布失败：" + (evt.task.title || ""), evt.error);
+        win?.webContents.send("scheduler-event", evt);
+      });
+
+      registerIpc({
+        ipcMain, dialog, lib, services, pipeline,
+        getScheduled: () => scheduler,
+        getWindow: () => win,
+      });
+      scheduler.start(20_000);
+      createWindow(path.join(__dirname, "..", "preload", "index.cjs"));
+      createTray();
+      app.on("before-quit", () => { isQuitting = true; });
+    } catch (e) {
+      console.error("启动失败:", e);
+      dialog.showErrorBox("稿匠启动失败", String(e?.stack || e));
+      app.quit();
+    }
+  });
+}
+app.on("window-all-closed", () => { if (!tray) app.quit(); });
