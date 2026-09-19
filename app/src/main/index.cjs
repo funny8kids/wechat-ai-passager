@@ -36,7 +36,7 @@ function createWindow(preloadPath) {
         }
       } catch (e) { console.error("GJ_SHOT failed", e); }
       isQuitting = true; app.quit();
-    }, 4000));
+    }, Number(process.env.GJ_SHOT_WAIT || 4000)));
   }
   win.on("close", (e) => {
     // 关窗不退出：调度器需常驻托盘继续盯定时任务

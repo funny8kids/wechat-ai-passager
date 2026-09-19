@@ -29,6 +29,7 @@
   <symbol id="i-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
   <symbol id="i-wand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 4 5 5"/><path d="M4 20 16.5 7.5a1 1 0 0 1 1.5 0l.5.5a1 1 0 0 1 0 1.5L6 22Z" transform="translate(0 -2.5)"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/></symbol>
 </svg>
 
 <!-- ============ 左侧导航栏（工具型外壳，OBS/VSCode 式） ============ -->
@@ -49,11 +50,29 @@
 <main id="view-write" class="view on">
   <aside class="pane left">
     <div class="panehead">
-      <b>文章库</b>
+      <div class="ptabs" role="tablist" aria-label="左栏切换">
+        <button class="pt on" data-lp="articles">文章库</button>
+        <button class="pt" data-lp="hot" title="聚合热榜，找选题"><svg class="ic"><use href="#i-flame"/></svg>热点</button>
+      </div>
       <button id="btnNew" class="btn sm" title="新建文章（Ctrl+N）"><svg class="ic"><use href="#i-plus"/></svg>新建</button>
     </div>
-    <div class="searchbox"><svg class="ic"><use href="#i-search"/></svg><input id="articleSearch" placeholder="搜索标题…" aria-label="搜索文章"></div>
-    <ul id="articleList" class="alist"></ul>
+    <div id="lp-articles" class="lpane on">
+      <div class="searchbox"><svg class="ic"><use href="#i-search"/></svg><input id="articleSearch" placeholder="搜索标题…" aria-label="搜索文章"></div>
+      <ul id="articleList" class="alist"></ul>
+    </div>
+    <div id="lp-hot" class="lpane">
+      <div class="hotbar">
+        <div class="hotsrcs" role="group" aria-label="热榜来源">
+          <button class="chip sm hs on" data-hot="weibo">微博</button>
+          <button class="chip sm hs" data-hot="zhihu">知乎</button>
+          <button class="chip sm hs" data-hot="toutiao">头条</button>
+          <button class="chip sm hs" data-hot="douyin">抖音</button>
+        </div>
+        <button id="btnHotRefresh" class="tbtn" title="强制刷新（忽略5分钟缓存）"><svg class="ic"><use href="#i-refresh"/></svg></button>
+      </div>
+      <div id="hotMeta" class="hotmeta muted small"></div>
+      <ol id="hotList" class="hotlist"></ol>
+    </div>
   </aside>
 
   <section class="pane center">
@@ -66,7 +85,13 @@
         <span id="wordCount" class="meta-chip">0 字</span>
         <span id="aiScore" class="chip" title="AI味评分：套话/排比/句长均匀度，越低越像真人">AI味 --</span>
         <span class="spacer"></span>
+        <button id="btnWizard" class="btn ghost sm" title="多智能体流水线：选题→调研→大纲→初稿→回炉→审核，每步由你确认"><svg class="ic"><use href="#i-cols"/></svg>成稿向导</button>
+        <button id="btnGenTitles" class="btn ghost sm" title="AI 起 7 个标题候选；点「采用」才会替换标题"><svg class="ic ai"><use href="#i-sparkles"/></svg>AI 起标题</button>
         <button id="btnGenDraft" class="btn ai sm"><svg class="ic"><use href="#i-sparkles"/></svg>AI 生成初稿</button>
+      </div>
+      <div id="titlePop" class="titlepop" hidden>
+        <div class="tphead"><b>标题候选</b><span class="muted small">点「采用」替换上方标题，不点就不生效</span><span class="spacer"></span><button id="btnTitlesAgain" class="btn sm ghost" title="重新生成一批"><svg class="ic"><use href="#i-refresh"/></svg>再来一批</button><button id="btnTitlesClose" class="tbtn" aria-label="关闭"><svg class="ic"><use href="#i-x"/></svg></button></div>
+        <ul id="titleCands"></ul>
       </div>
     </header>
 
@@ -189,9 +214,35 @@
     <div class="card">
       <div class="cardhead"><b><svg class="ic ai"><use href="#i-sparkles"/></svg>AI 服务（OpenAI 兼容）</b></div>
       <div class="grid2">
-        <label>Base URL<input id="sBaseUrl" placeholder="https://api.deepseek.com/v1"></label>
-        <label>模型<input id="sModel" placeholder="deepseek-v4-pro"></label>
+        <label>服务商预设
+          <select id="sPreset" class="select">
+            <option value="">自定义 / 已手动填写</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="kimi">Kimi（月之暗面）</option>
+            <option value="openai">OpenAI 官方</option>
+            <option value="ollama">本地 Ollama（免 Key）</option>
+          </select>
+        </label>
+        <label>模型<input id="sModel" placeholder="deepseek-chat"></label>
+        <label class="span2">Base URL<input id="sBaseUrl" placeholder="https://api.deepseek.com/v1"></label>
         <label class="span2">API Key<input id="sAiKey" type="password" placeholder="留空=不修改" autocomplete="off"></label>
+        <label>全局温度（0 严谨 ~ 1 发散）
+          <div class="rangewrap"><input type="range" id="sTempRange" min="0" max="1.5" step="0.05"><output id="sTempOut">0.7</output></div>
+        </label>
+        <label>单次最大输出 tokens<input type="number" id="sMaxTokens" min="0" max="65536" step="256" placeholder="0=服务商默认"></label>
+      </div>
+      <div class="agentgrid">
+        <div class="aghead"><span>每个 Agent 单独参数（模型留空=跟随全局）</span></div>
+        <label class="agrow"><span>生成初稿</span><input id="agDraftModel" placeholder="模型"><input type="number" id="agDraftTemp" min="0" max="2" step="0.1" placeholder="温度"></label>
+        <label class="agrow"><span>选区改写</span><input id="agRewriteModel" placeholder="模型"><input type="number" id="agRewriteTemp" min="0" max="2" step="0.1" placeholder="温度"></label>
+        <label class="agrow"><span>起标题</span><input id="agTitleModel" placeholder="模型"><input type="number" id="agTitleTemp" min="0" max="2" step="0.1" placeholder="温度"></label>
+        <label class="agrow"><span>配图提示词</span><input id="agImageModel" placeholder="模型"><input type="number" id="agImageTemp" min="0" max="2" step="0.1" placeholder="温度"></label>
+        <label class="agrow"><span>调研 Agent</span><input id="agResearchModel" placeholder="模型"><input type="number" id="agResearchTemp" min="0" max="2" step="0.1" placeholder="温度"></label>
+        <label class="agrow"><span>审核 Agent</span><input id="agAuditModel" placeholder="模型"><input type="number" id="agAuditTemp" min="0" max="2" step="0.1" placeholder="温度"></label>
+      </div>
+      <div class="pubrow" style="margin-top:12px">
+        <button id="btnAiTest" class="btn"><svg class="ic ai"><use href="#i-sparkles"/></svg>测试 AI 连通</button>
+        <span id="aiTestResult" class="small muted"></span>
       </div>
     </div>
     <div class="card">
@@ -211,6 +262,29 @@
       <div class="cardhead"><b><svg class="ic"><use href="#i-send"/></svg>发布行为</b></div>
       <label class="ckl"><input type="checkbox" id="sConfirm"> 定时到点仅提醒，最终「发布」由我确认（推荐）</label>
       <label class="ckl"><input type="checkbox" id="sRetry"> 失败自动重试（≤3 次，间隔 5 分钟）</label>
+    </div>
+    <div class="card">
+      <div class="cardhead"><b><svg class="ic"><use href="#i-edit2"/></svg>排版样式</b><span class="muted small">内置样式只读；可存自己的公众号样式，新文章默认用它</span></div>
+      <label class="fieldrow">新文章默认样式<select id="sDefaultTheme" class="select"></select></label>
+      <div id="themeList" class="themelist"></div>
+      <button id="btnThemeNew" class="btn sm" style="margin-top:10px"><svg class="ic"><use href="#i-plus"/></svg>新建自定义样式</button>
+      <div id="themeForm" class="themeform" hidden>
+        <div class="tfhead"><b id="tfTitle">新建样式</b><button id="btnThemeCancel" class="tbtn" aria-label="取消"><svg class="ic"><use href="#i-x"/></svg></button></div>
+        <div class="grid2">
+          <label>样式名<input id="tfName" placeholder="例：我的深夜蓝" maxlength="20"></label>
+          <label class="tf-row">强调色<input type="color" id="tfAccent" value="#0a9953">标题色<input type="color" id="tfHeading" value="#17372a"></label>
+          <label class="tf-row">正文色<input type="color" id="tfBody" value="#26313f">引用色<input type="color" id="tfQuote" value="#5b6773"></label>
+          <label class="tf-row">引用底色<input type="color" id="tfQuoteBg" value="#f4f8f6">分割线<input type="color" id="tfBorder" value="#e3e8e6"></label>
+          <label>正文字号<input type="number" id="tfFontSize" value="16" min="13" max="19" step="1"></label>
+          <label>行距<input type="number" id="tfLineHeight" value="1.75" min="1.4" max="2.4" step="0.05"></label>
+          <label>字距(px)<input type="number" id="tfLetterSpacing" value="0.4" min="0" max="2" step="0.1"></label>
+        </div>
+        <div class="tfpv"><div id="themePv" class="phoneish"></div></div>
+        <div class="pubrow">
+          <button id="btnThemeSave" class="btn primary sm"><svg class="ic"><use href="#i-check"/></svg>保存样式</button>
+          <span id="tfErr" class="small" style="color:var(--err)"></span>
+        </div>
+      </div>
     </div>
     <div class="card">
       <div class="cardhead"><b><svg class="ic ai"><use href="#i-wand"/></svg>个人素材库 · 活人感弹药</b></div>
@@ -237,13 +311,38 @@
 </footer>
 </div>
 
+<!-- ============ 多智能体成稿向导（每步人工确认） ============ -->
+<div id="wiz" class="wiz" hidden>
+  <header class="wiz-head">
+    <b>多智能体成稿向导</b>
+    <span class="muted small">选题→调研→大纲→初稿→回炉→审核；每一步都可编辑、重做、跳过，定稿权在你</span>
+    <span class="spacer"></span>
+    <button id="wizAbort" class="tbtn" aria-label="退出向导" title="退出向导（当前内容丢弃）"><svg class="ic"><use href="#i-x"/></svg></button>
+  </header>
+  <nav class="wiz-steps" id="wizSteps" aria-label="流水线步骤"></nav>
+  <div class="wiz-body">
+    <div class="wiz-desc" id="wizDesc"></div>
+    <textarea id="wizOut" class="wiz-out" spellcheck="false"></textarea>
+    <div class="wiz-acts">
+      <button id="wizRun" class="btn ai sm"><svg class="ic"><use href="#i-sparkles"/></svg><span id="wizRunLabel">执行本步</span></button>
+      <button id="wizRestore" class="btn sm ghost" hidden>恢复原稿</button>
+      <button id="wizSkip" class="btn sm ghost">跳过本步</button>
+      <span id="wizHint" class="small muted"></span>
+      <span class="spacer"></span>
+      <button id="wizNext" class="btn primary sm">确认并进入下一步 →</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 <script src="js/util.js"></script>
 <script src="js/editor.js"></script>
+<script src="js/hot.js"></script>
 <script src="js/workbench.js"></script>
 <script src="js/images.js"></script>
 <script src="js/publish.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/wizard.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>

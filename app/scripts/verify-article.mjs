@@ -77,6 +77,11 @@ T("全内联样式(无class依赖)", /style="/.test(htmlA) && !/<link|@import|<s
 T("图槽渲染为虚线占位chip", /虚线|图槽/.test(htmlA) && /border:\s*[^"]*dashed/.test(htmlA));
 T("无脚本注入", !/<script/i.test(htmlA));
 
+// 自定义样式（用户存的公众号样式 → themeOverride）
+const htmlC = renderWeChatHtml(md2, "青竹绿", { themeOverride: { accent: "#7c3aed", heading: "#2e1065", body: "#1f2937", quote: "#6b7280", quoteBg: "#f5f3ff", border: "#e9d5ff", fontSize: 17, lineHeight: 1.9, letterSpacing: 0.6 } });
+T("自定义样式覆盖生效(色/字号/行距)", htmlC.includes("#7c3aed") && htmlC.includes("font-size:17px") && htmlC.includes("line-height:1.9"));
+T("自定义与内置互不污染", htmlA !== htmlC && !htmlA.includes("#7c3aed"));
+
 // 外链→角注
 const withLink = "测试段落文字。\n\n参考：[官方文档](https://developers.weixin.qq.com/doc)\n\n![本地图](myimg1)";
 const htmlL = renderWeChatHtml(withLink, "青竹绿", { imgMap: { myimg1: "https://mmbiz.qpic.cn/test/x.png" } });

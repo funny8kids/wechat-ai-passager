@@ -18,8 +18,16 @@ contextBridge.exposeInMainWorld("api", {
   aiChat: (messages) => ipcRenderer.invoke("ai:chat", { messages }),
   aiDraft: (prompt) => ipcRenderer.invoke("ai:draft", { prompt }),
   aiJson: (system, user) => ipcRenderer.invoke("ai:json", { system, user }),
+  aiTitles: (topic, excerpt) => ipcRenderer.invoke("ai:titles", { topic, excerpt }),
+  aiTest: (cfg) => ipcRenderer.invoke("ai:test", cfg),
+  aiAgent: (agent, user) => ipcRenderer.invoke("ai:agent", { agent, user }),
+  // 热榜
+  hotFetch: (source, force) => ipcRenderer.invoke("hot:fetch", { source, force }),
   // 渲染与素材
   render: (md, theme) => ipcRenderer.invoke("preview:render", { md, theme }),
+  themesList: () => ipcRenderer.invoke("themes:list"),
+  themeSave: (theme) => ipcRenderer.invoke("themes:save", theme),
+  themeDelete: (name) => ipcRenderer.invoke("themes:delete", name),
   pickImage: () => ipcRenderer.invoke("dialog:pickImage"),
   importAsset: (srcPath) => ipcRenderer.invoke("assets:import", srcPath),
   assetDataUrl: (name) => ipcRenderer.invoke("asset:dataUrl", name),

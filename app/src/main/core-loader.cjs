@@ -17,7 +17,9 @@ async function loadCore() {
     AIClient: ai.AIClient,
     AI_TASKS: ai.AI_TASKS,
     buildRewriteMessages: ai.buildRewriteMessages,
+    buildTitleMessages: ai.buildTitleMessages,
     renderWeChatHtml: md.renderWeChatHtml,
+    BUILTIN_THEMES: md.BUILTIN_THEMES,
     JsonStore: store.JsonStore,
     Scheduler: sched.Scheduler,
   };

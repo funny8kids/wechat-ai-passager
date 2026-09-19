@@ -5,6 +5,7 @@
 let articles = [], cur = null;
 let snapshots = []; // 内存快照栈（撤销用）
 let settings = null;
+let themeCatalog = { builtin: [], custom: [] };
 
 // ---------- Tab 切换 ----------
 $$(".tab").forEach((b) => b.addEventListener("click", () => {
@@ -79,6 +80,16 @@ $("#btnSave").onclick = () => saveCur();
 $("#editor").addEventListener("input", () => { markDirty(); debounceRender(); updateScore(); });
 $("#fTitle").addEventListener("input", markDirty);
 $("#fTheme").addEventListener("change", () => { markDirty(); renderPreview(); });
+
+// ---------- 样式目录（内置 + 自定义）填充到主题下拉 ----------
+async function refreshThemeSelect() {
+  themeCatalog = await window.api.themesList();
+  const sel = $("#fTheme");
+  const keep = sel.value;
+  sel.innerHTML = [...themeCatalog.builtin, ...themeCatalog.custom]
+    .map((t) => `<option value="${esc(t.name)}">${esc(t.name)}${t.builtin ? "" : "（我的）"}</option>`).join("");
+  if ([...sel.options].some((o) => o.value === keep)) sel.value = keep;
+}
 
 // ---------- 预览 ----------
 let _rh;
@@ -207,6 +218,39 @@ $("#btnAudit").addEventListener("click", async () => {
   $("#auditList").innerHTML = out.join("");
   toast("审核 Agent 完成（规则检查；LLM 事实核查在流水线版提供）");
 });
+
+// ---------- AI 起标题（HITL：候选只是建议，点「采用」才替换） ----------
+async function genTitles() {
+  const pop = $("#titlePop"), ul = $("#titleCands");
+  pop.hidden = false;
+  ul.innerHTML = `<li class="tp-loading">AI 正在起标题…</li>`;
+  const b = $("#btnGenTitles"); b.disabled = true;
+  try {
+    const r = await window.api.aiTitles($("#fTitle").value.trim(), $("#editor").value);
+    if (!r.titles || !r.titles.length) {
+      ul.innerHTML = `<li class="tp-loading">没拿到候选${r.raw ? "（模型返回异常）" : ""}，点「再来一批」重试</li>`;
+      return;
+    }
+    ul.innerHTML = "";
+    for (const x of r.titles) {
+      const liEl = document.createElement("li");
+      liEl.className = "tp-item";
+      liEl.innerHTML = `<span class="tt">${esc(x.t)}</span>${x.s ? `<span class="stchip">${esc(x.s)}</span>` : ""}<span class="len ${x.t.length > 24 ? "over" : ""}">${x.t.length}字</span><button class="btn sm primary use">采用</button>`;
+      liEl.querySelector(".use").addEventListener("click", () => {
+        $("#fTitle").value = x.t;
+        markDirty();
+        pop.hidden = true;
+        toast(`已采用标题《${x.t}》，可继续手动改`);
+      });
+      ul.appendChild(liEl);
+    }
+  } catch (e) {
+    ul.innerHTML = `<li class="tp-loading">生成失败：${esc(e.message)}</li>`;
+  } finally { b.disabled = false; }
+}
+$("#btnGenTitles").addEventListener("click", genTitles);
+$("#btnTitlesAgain").addEventListener("click", genTitles);
+$("#btnTitlesClose").addEventListener("click", () => { $("#titlePop").hidden = true; });
 
 // ---------- AI 初稿 ----------
 $("#btnGenDraft").addEventListener("click", async () => {

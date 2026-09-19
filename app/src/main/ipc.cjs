@@ -3,8 +3,12 @@
 const path = require("path");
 const fs = require("fs/promises");
 
+const HOT_BASE = "https://60s-api.viki.moe/v2"; // 开源聚合热榜（vikiboss/60s）
+const HOT_PLATFORMS = ["weibo", "zhihu", "toutiao", "douyin"];
+const HOT_TTL_MS = 5 * 60 * 1000;
+
 function registerIpc({ ipcMain, dialog, lib, services, pipeline, getScheduled, getWindow }) {
-  const { store, getSettings, setSettings, getSecrets, setSecrets, aiClient, wxClient } = services;
+  const { store, getSettings, setSettings, getSecrets, setSecrets, aiClient, wxClient, listThemes, saveTheme, deleteTheme, renderHtml } = services;
 
   // ---------- 设置与密钥 ----------
   ipcMain.handle("settings:get", getSettings);
@@ -31,9 +35,12 @@ function registerIpc({ ipcMain, dialog, lib, services, pipeline, getScheduled, g
   });
 
   // ---------- 渲染与 AI ----------
-  ipcMain.handle("preview:render", async (e, { md, theme }) => lib.renderWeChatHtml(md || "", theme || "青竹绿", {}));
+  ipcMain.handle("preview:render", async (e, { md, theme }) => renderHtml(md || "", theme || "青竹绿", {}));
+  ipcMain.handle("themes:list", () => listThemes());
+  ipcMain.handle("themes:save", (e, theme) => saveTheme(theme));
+  ipcMain.handle("themes:delete", (e, name) => deleteTheme(name));
   ipcMain.handle("ai:rewrite", async (e, { task, selText, customNote }) => {
-    const client = await aiClient();
+    const client = await aiClient("改写");
     return { text: await client.chat(lib.buildRewriteMessages(task, selText, customNote)) };
   });
   ipcMain.handle("ai:chat", async (e, { messages }) => {
@@ -41,14 +48,81 @@ function registerIpc({ ipcMain, dialog, lib, services, pipeline, getScheduled, g
     return { text: await client.chat(messages) };
   });
   ipcMain.handle("ai:json", async (e, { system, user }) => {
-    const client = await aiClient();
-    const text = await client.chat([{ role: "system", content: system + "\n只输出合法 JSON。" }, { role: "user", content: user }], { json: true, temperature: 0.6 });
+    const client = await aiClient("配图");
+    const text = await client.chat([{ role: "system", content: system + "\n只输出合法 JSON。" }, { role: "user", content: user }], { json: true });
     try { return { json: JSON.parse(text) }; }
     catch { return { json: null, raw: text }; }
   });
   ipcMain.handle("ai:draft", async (e, { prompt }) => {
-    const client = await aiClient();
-    return { text: await client.chat([{ role: "system", content: lib.AI_TASKS.生成初稿 }, { role: "user", content: prompt }], { temperature: 0.8 }) };
+    const client = await aiClient("初稿");
+    return { text: await client.chat([{ role: "system", content: lib.AI_TASKS.生成初稿 }, { role: "user", content: prompt }]) };
+  });
+  ipcMain.handle("ai:titles", async (e, { topic, excerpt } = {}) => {
+    const client = await aiClient("标题");
+    const m = lib.buildTitleMessages({ topic, excerpt });
+    const text = await client.chat([{ role: "system", content: m.system }, { role: "user", content: m.user }], { json: true });
+    try {
+      const j = JSON.parse(text);
+      const titles = (Array.isArray(j.titles) ? j.titles : [])
+        .map((x) => ({ t: String(x.t || "").trim(), s: String(x.s || "").trim() }))
+        .filter((x) => x.t);
+      return titles.length ? { titles } : { titles: [], raw: text };
+    } catch {
+      // 模型没给合法 JSON：按行拆纯文本兜底
+      const titles = text.split("\n").map((l) => l.replace(/^[-\d.、"\s]+/, "").replace(/["，,].*$/, "").trim()).filter((l) => l && l.length <= 40).slice(0, 7).map((t) => ({ t, s: "" }));
+      return titles.length ? { titles } : { titles: [], raw: text };
+    }
+  });
+
+  // ---------- 成稿向导：按 Agent 名跑一步（温度/模型走各 Agent 的设置） ----------
+  ipcMain.handle("ai:agent", async (e, { agent, user } = {}) => {
+    const task = lib.AI_TASKS[agent];
+    if (!task) return { error: `未知 Agent：${agent}` };
+    const client = await aiClient({ 调研: "调研", 大纲: "初稿", 审核: "审核" }[agent] || "改写");
+    return { text: await client.chat([{ role: "system", content: task }, { role: "user", content: String(user || "") }]) };
+  });
+
+  // ---------- AI 连通测试（用当前表单值即可测，不必先保存） ----------
+  ipcMain.handle("ai:test", async (e, { baseUrl, model, apiKey } = {}) => {
+    const t0 = Date.now();
+    try {
+      const s = await getSettings();
+      const sec = await getSecrets();
+      const client = new lib.AIClient({
+        baseUrl: baseUrl || s.baseUrl,
+        apiKey: apiKey || sec.aiKey,
+        model: model || s.model,
+        temperature: 0.1,
+      });
+      const reply = await client.chat([{ role: "user", content: "请只回复两个字：正常" }]);
+      return { ok: true, ms: Date.now() - t0, reply: String(reply).trim().slice(0, 40) };
+    } catch (err) {
+      return { ok: false, ms: Date.now() - t0, error: err.message };
+    }
+  });
+
+  // ---------- 热榜（选题参考；主进程代拉，避免渲染进程 CORS） ----------
+  ipcMain.handle("hot:fetch", async (e, { source, force } = {}) => {
+    const key = String(source || "weibo").toLowerCase();
+    if (!HOT_PLATFORMS.includes(key)) return { error: `不支持的热榜来源: ${key}` };
+    const cacheKey = `hot-${key}`; // 注意：store 键即文件名，不能用冒号
+    const cached = await store.load(cacheKey, null);
+    if (!force && cached && Date.now() - cached.ts < HOT_TTL_MS) return { items: cached.items, ts: cached.ts, cached: true };
+    try {
+      const res = await fetch(`${HOT_BASE}/${key}`, { signal: AbortSignal.timeout(10_000) });
+      const j = await res.json();
+      if (j.code !== 200 || !Array.isArray(j.data)) return { error: `热榜接口返回异常 (code=${j.code})` };
+      const items = j.data.slice(0, 30).map((x, i) => ({
+        rank: i + 1,
+        title: String(x.title || "").trim(),
+        hot: Number.isFinite(x.hot_value) ? x.hot_value : null,
+      })).filter((x) => x.title);
+      await store.save(cacheKey, { ts: Date.now(), items });
+      return { items, ts: Date.now() };
+    } catch (err) {
+      if (cached) return { items: cached.items, ts: cached.ts, cached: true, stale: true };
+      return { error: `拉取失败：${err.message}` };
+    }
   });
 
   // ---------- 素材与图片资产 ----------

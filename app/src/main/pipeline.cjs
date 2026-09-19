@@ -6,7 +6,7 @@ const fs = require("fs/promises");
 const IMG_RE = /!\[[^\]]*\]\(([^)\s]+)/g;
 
 function createPipeline({ lib, services, getScheduler, notify }) {
-  const { store, getSettings, wxClient } = services;
+  const { store, getSettings, wxClient, renderHtml } = services;
 
   async function buildDraftPayload(article) {
     const s = await getSettings();
@@ -25,7 +25,7 @@ function createPipeline({ lib, services, getScheduler, notify }) {
         throw new Error(`本地图片读取失败: ${p}（${e.message}）`);
       }
     }
-    const html = lib.renderWeChatHtml(article.md, article.theme || s.theme, { imgMap });
+    const html = await renderHtml(article.md, article.theme || s.theme, { imgMap });
     // 封面：优先显式 coverPath，其次正文第一张本地图（微信草稿必须有 thumb_media_id）
     let coverPath = article.coverPath;
     if (!coverPath) {

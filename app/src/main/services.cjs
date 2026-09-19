@@ -9,6 +9,16 @@ const DEFAULT_SETTINGS = {
   theme: "青竹绿",
   confirmBeforePublish: true,
   autoRetry: true,
+  temperature: 0.7,
+  maxTokens: 0, // 0 = 不限制，交给服务商默认
+  agentParams: {
+    初稿: { model: "", temperature: 0.8 },
+    改写: { model: "", temperature: 0.7 },
+    标题: { model: "", temperature: 0.9 },
+    配图: { model: "", temperature: 0.6 },
+    调研: { model: "", temperature: 0.5 },
+    审核: { model: "", temperature: 0.3 },
+  },
 };
 
 function createServices({ lib, safeStorage, dataDir }) {
@@ -52,6 +62,41 @@ function createServices({ lib, safeStorage, dataDir }) {
     if (Object.keys(patch).length) await setSecrets(patch);
   }
 
+  // ---------- 排版样式（内置 + 用户存的公众号样式） ----------
+  async function listThemes() {
+    const builtin = Object.entries(lib.BUILTIN_THEMES).map(([name, p]) => ({ name, builtin: true, ...p }));
+    const custom = await store.load("themes", []);
+    return { builtin, custom };
+  }
+  async function saveTheme(theme) {
+    const name = String(theme?.name || "").trim();
+    if (!name) throw new Error("样式名不能为空");
+    if (lib.BUILTIN_THEMES[name]) throw new Error(`不能与内置样式重名：${name}`);
+    const list = (await store.load("themes", [])).filter((x) => x.name !== name);
+    list.push({ ...theme, name, builtin: false });
+    await store.save("themes", list);
+    return list;
+  }
+  async function deleteTheme(name) {
+    const list = (await store.load("themes", [])).filter((x) => x.name !== name);
+    await store.save("themes", list);
+    return list;
+  }
+  // 统一渲染入口：theme 可为样式名（内置或自定义）或直接传调色板对象（设置页实时预览）
+  const THEME_KEYS = ["accent", "heading", "body", "quote", "quoteBg", "border", "fontSize", "lineHeight", "letterSpacing"];
+  const sanitizeTheme = (o) => Object.fromEntries(THEME_KEYS.filter((k) => o[k] != null && o[k] !== "").map((k) => [k, o[k]]));
+  async function renderHtml(md, theme, opts = {}) {
+    let name = typeof theme === "string" && theme ? theme : (await getSettings()).theme || "青竹绿";
+    let override;
+    if (theme && typeof theme === "object") override = sanitizeTheme(theme);
+    else {
+      const custom = await store.load("themes", []);
+      const c = custom.find((x) => x.name === name);
+      if (c) override = sanitizeTheme(c);
+    }
+    return lib.renderWeChatHtml(md, override ? "青竹绿" : name, { ...opts, themeOverride: override });
+  }
+
   // ---------- 客户端工厂 ----------
   function wxClient() {
     return getSecrets().then(({ appId, appSecret }) => {
@@ -59,12 +104,18 @@ function createServices({ lib, safeStorage, dataDir }) {
       return new lib.WeChatClient({ appId, appSecret });
     });
   }
-  async function aiClient() {
+  async function aiClient(agentKey) {
     const [s, sec] = await Promise.all([getSettings(), getSecrets()]);
-    return new lib.AIClient({ baseUrl: s.baseUrl, apiKey: sec.aiKey, model: s.model });
+    const ap = agentKey ? (s.agentParams || DEFAULT_SETTINGS.agentParams)[agentKey] : null;
+    return new lib.AIClient({
+      baseUrl: s.baseUrl, apiKey: sec.aiKey,
+      model: ap?.model || s.model,
+      temperature: ap?.temperature ?? s.temperature ?? DEFAULT_SETTINGS.temperature,
+      maxTokens: s.maxTokens ?? 0,
+    });
   }
 
-  return { store, init, getSettings, setSettings, getSecrets, setSecrets, bootstrapSecretsFromEnv, wxClient, aiClient };
+  return { store, init, getSettings, setSettings, getSecrets, setSecrets, bootstrapSecretsFromEnv, listThemes, saveTheme, deleteTheme, renderHtml, wxClient, aiClient };
 }
 
 module.exports = { createServices, DEFAULT_SETTINGS };

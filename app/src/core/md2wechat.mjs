@@ -6,10 +6,12 @@ const THEMES = {
   杂志灰: { accent: "#374151", heading: "#111827", body: "#1f2937", quote: "#6b7280", quoteBg: "#f3f4f6", border: "#e5e7eb" },
   暖橙手账: { accent: "#c2571b", heading: "#4a2511", body: "#3b3630", quote: "#78716c", quoteBg: "#faf5f0", border: "#eee6de" },
 };
+export const BUILTIN_THEMES = THEMES;
 
+// opts.themeOverride：自定义样式（用户存的公众号样式），字段与 THEMES 相同，另支持 fontSize/lineHeight/letterSpacing
 export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
-  const t = THEMES[themeName] || THEMES["青竹绿"];
-  const bodyStyle = `font-size:16px;line-height:1.75;color:${t.body};letter-spacing:0.4px;word-break:break-word;`;
+  const t = { ...(THEMES[themeName] || THEMES["青竹绿"]), ...(opts.themeOverride || {}) };
+  const bodyStyle = `font-size:${Number(t.fontSize) || 16}px;line-height:${Number(t.lineHeight) || 1.75};color:${t.body};letter-spacing:${t.letterSpacing ?? 0.4}px;word-break:break-word;`;
   const imgMap = opts.imgMap || {}; // 本地路径/URL -> 微信CDN url
   const footnotes = [];
   const esc = (s) =>
