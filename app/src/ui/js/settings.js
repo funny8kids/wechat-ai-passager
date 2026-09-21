@@ -113,9 +113,9 @@ $("#btnClearAppSecret").onclick = async () => {
   loadSettings();
 };
 $("#btnSelfTest").onclick = async () => {
-  $("#testResult").innerHTML = li("none", "自检中：token → 草稿权限 → 公网IP…");
+  $("#testResult").innerHTML = li("none", "自检中：token → 草稿权限 → 公网IP…（用表单当前值，未保存也能测）");
   try {
-    const steps = await window.api.wxSelfTest();
+    const steps = await window.api.wxSelfTest({ appId: $("#sAppId").value, appSecret: $("#sAppSecret").value });
     $("#testResult").innerHTML = steps.map(([n, r]) => li(r === "ok" || /^ok/.test(r) ? "ok" : String(r).startsWith("fail") ? "bad" : "none", `${n}：${r}`)).join("");
     const allOk = steps.every(([, r]) => !String(r).startsWith("fail"));
     $("#apiChip").textContent = allOk ? "API 正常" : "API 异常";

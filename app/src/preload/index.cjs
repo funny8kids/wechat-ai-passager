@@ -36,7 +36,7 @@ contextBridge.exposeInMainWorld("api", {
   importAsset: (srcPath) => ipcRenderer.invoke("assets:import", srcPath),
   assetDataUrl: (name) => ipcRenderer.invoke("asset:dataUrl", name),
   // 微信
-  wxSelfTest: () => ipcRenderer.invoke("wx:selftest"),
+  wxSelfTest: (override) => ipcRenderer.invoke("wx:selftest", override),
   wxSaveDraft: (article) => ipcRenderer.invoke("wx:saveDraft", article),
   wxPublish: (article) => ipcRenderer.invoke("wx:publish", article),
   detectIp: () => ipcRenderer.invoke("ip:detect"),

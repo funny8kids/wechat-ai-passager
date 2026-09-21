@@ -101,7 +101,16 @@ function createServices({ lib, safeStorage, dataDir }) {
   }
 
   // ---------- 客户端工厂 ----------
-  function wxClient() {
+  function wxClient(override) {
+    // override：表单直测（未保存也能测）；留空字段回落到已保存凭证
+    if (override && (override.appId || override.appSecret)) {
+      return getSecrets().then(({ appId, appSecret }) => {
+        const id = (override.appId || "").trim() || appId;
+        const sec = (override.appSecret || "").trim() || appSecret;
+        if (!id || !sec) throw new Error("AppID / AppSecret 未填全（或先「保存设置」再自检）");
+        return new lib.WeChatClient({ appId: id, appSecret: sec });
+      });
+    }
     return getSecrets().then(({ appId, appSecret }) => {
       if (!appId || !appSecret) throw new Error("未配置 AppID / AppSecret（设置 → 公众号）");
       return new lib.WeChatClient({ appId, appSecret });

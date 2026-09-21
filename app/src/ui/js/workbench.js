@@ -115,6 +115,15 @@ document.addEventListener("keydown", (e) => {
       const el = (sel && $(sel)) || $("#btnClearAppSecret") || $("#btnOpenDataDir");
       el?.closest(".card")?.scrollIntoView({ block: "center" });
     }, 800);
+  } else if (h === "demo-wxtest") {
+    // 界面 QA：表单填入示例凭证（不落库）→ 真实点击「连通性自检」→ 微信服务器真实应答显形
+    setTimeout(() => {
+      $('.tab[data-tab="settings"]').click();
+      $("#sAppId").value = "wxFACE00000000001";
+      $("#sAppSecret").value = "selftest_wiring_probe";
+      $("#btnSelfTest").scrollIntoView({ block: "center" });
+      $("#btnSelfTest").click();
+    }, 900);
   } else if (h === "demo-theme") {
     // 界面 QA：打开设置页样式编辑器并填入示例调色板
     setTimeout(() => {

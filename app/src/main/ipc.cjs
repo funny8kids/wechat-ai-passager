@@ -165,10 +165,10 @@ function registerIpc({ ipcMain, dialog, shell, lib, services, pipeline, getSched
   ipcMain.handle("autosave:get", () => store.load("autosave", null));
 
   // ---------- 微信 ----------
-  ipcMain.handle("wx:selftest", async () => {
+  ipcMain.handle("wx:selftest", async (e, override) => {
     const steps = [];
     try {
-      const c = await wxClient();
+      const c = await wxClient(override);
       await c.getToken(); steps.push(["获取 access_token", "ok"]);
       try { steps.push(["草稿箱权限", `ok（现有草稿 ${await c.draftCount()} 篇）`]); }
       catch (e) { steps.push(["草稿箱权限", `fail: ${e.message}`]); }
