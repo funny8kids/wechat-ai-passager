@@ -1,7 +1,36 @@
 /* 发布页：立即存草稿 / 立即发布 / 定时入队 / 队列状态与人工放行 */
 "use strict";
 
+// ---------- 发布通道横幅：明确「复制富文本」是未接入/无权限时的正式方案 ----------
+function gotoWriteCopy() {
+  $('.tab[data-tab="write"]').click();
+  setTimeout(() => $("#btnCopyRich")?.click(), 400);
+}
+async function updatePubBanner() {
+  const b = $("#pubChannelBanner");
+  if (!b) return;
+  let s = { appSecretSet: false };
+  try { s = await window.api.getSecrets(); } catch {}
+  const chip = $("#apiChip")?.textContent || "未自检";
+  b.className = "chanbanner show";
+  if (!s.appSecretSet) {
+    b.classList.add("warn");
+    b.innerHTML = `<span class="grow"><b>未接入微信 API：正式发布方式为「复制富文本」</b><br>写作页点「复制富文本」→ 公众号后台编辑器 Ctrl+V，排版样式全保留（正文图片需后台手动插入）。要一键送草稿箱/定时发布？到设置填 AppID/AppSecret 并自检。</span><button class="btn sm" id="bnGoSet">去设置</button><button class="btn sm primary" id="bnGoCopy">去写作页复制</button>`;
+  } else if (chip === "API 异常") {
+    b.classList.add("warn");
+    b.innerHTML = `<span class="grow"><b>微信 API 自检未通过</b>（见状态栏「API 异常」）：常见为 IP 未加白名单（40164）或账号无草稿权限（48001，未认证个人订阅号）。修好前请用正式方案「复制富文本」发布。</span><button class="btn sm" id="bnGoSet">去重新自检</button><button class="btn sm primary" id="bnGoCopy">去写作页复制</button>`;
+  } else if (chip === "API 正常") {
+    b.classList.add("ok");
+    b.innerHTML = `<span class="grow"><b>微信 API 正常</b>：可直接送草稿箱/定时发布；「复制富文本」仍可作备用方式。</span>`;
+  } else {
+    b.innerHTML = `<span class="grow">已保存微信凭证、尚未自检：到「设置 → 微信公众号」点「连通性自检」确认可用；自检不通时用正式方案「复制富文本」发布。</span><button class="btn sm" id="bnGoSet">去自检</button><button class="btn sm primary" id="bnGoCopy">去写作页复制</button>`;
+  }
+  $("#bnGoSet")?.addEventListener("click", () => $('.tab[data-tab="settings"]').click());
+  $("#bnGoCopy")?.addEventListener("click", gotoWriteCopy);
+}
+
 async function refreshQueue() {
+  updatePubBanner().catch(() => {});
   $("#pubTitle").textContent = cur ? cur.title || "（无题）" : "（未选择文章）";
   const list = await window.api.queueList();
   const box = $("#queueList");
@@ -40,7 +69,12 @@ window.api.onSchedulerEvent((evt) => {
 async function guard(fn) {
   $("#pubResult").innerHTML = `<span class="muted">执行中…（图片转存→建草稿→发布）</span>`;
   try { const r = await fn(); $("#pubResult").innerHTML = `<span style="color:var(--accent)">✓ ${esc(r)}</span>`; toast(r); }
-  catch (e) { $("#pubResult").innerHTML = `<span style="color:var(--err)">✗ ${esc(e.message)}</span>`; toast("失败：" + e.message); }
+  catch (e) {
+    // API 失败不静默：显形原因 + 一键切到正式方案「复制富文本」
+    $("#pubResult").innerHTML = `<span style="color:var(--err)">✗ ${esc(e.message)}</span> <button class="btn sm ghost" id="prFallback">改用「复制富文本」发布</button>`;
+    toast("失败：" + e.message);
+    $("#prFallback").onclick = gotoWriteCopy;
+  }
 }
 $("#btnToDraft").onclick = () => { if (!cur) return toast("未选择文章"); saveCur(true).then(() => guard(async () => { const r = await window.api.wxSaveDraft(cur); return "已存入草稿箱（media_id " + r.draftMediaId.slice(0, 10) + "…）"; })); };
 $("#btnPubNow").onclick = () => { if (!cur) return toast("未选择文章"); saveCur(true).then(() => guard(async () => { const r = await window.api.wxPublish(cur); return "已提交发布（publish_id " + String(r.publishId).slice(0, 10) + "…），微信审核结果每分钟自动回写到下方队列"; })); };

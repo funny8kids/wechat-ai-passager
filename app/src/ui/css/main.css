@@ -271,6 +271,11 @@ label.ckl input{accent-color:var(--accent)}
 .datelabel{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
 .datelabel input{padding:6px 8px;font-size:12.5px}
 .pubresult{margin-top:10px;min-height:18px;line-height:1.6}
+.chanbanner{display:none;align-items:flex-start;gap:10px;border:1px solid var(--line);background:var(--panel-2);border-radius:var(--r-lg);padding:10px 12px;margin:0 0 12px;font-size:13px;line-height:1.7}
+.chanbanner.show{display:flex}
+.chanbanner.warn{border-color:#f59e0b55;background:#fffbeb;color:#92400e}
+.chanbanner.ok{border-color:#10b98155;background:#f0fdf4;color:#065f46}
+.chanbanner .grow{flex:1}
 
 /* ---- 发布流程四步 ---- */
 .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
