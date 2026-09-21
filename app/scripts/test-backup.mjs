@@ -89,6 +89,11 @@ T("导入前先存.pre-import找回副本", ipc.includes(".pre-import.json") && 
 T("导入需主进程确认框(HITL)", /showMessageBox[\s\S]{0,300}替换并导入/.test(ipc));
 T("导入后作废素材缓存", ipc.includes("_duCache.clear()"));
 T("导出走系统保存框且取消返回null", /showSaveDialog[\s\S]{0,300}canceled[\s\S]{0,120}return null/.test(ipc));
+T("QA门控GJ_BACKUP_DIR在导出与导入两处都在", (ipc.match(/GJ_BACKUP_DIR/g) || []).length >= 3);
+T("门控开启才跳确认框，正常路径HITL确认框原样保留", /if \(!process\.env\.GJ_BACKUP_DIR\) \{[\s\S]{0,160}showMessageBox/.test(ipc));
+T("门控导出导入走同一固定包文件", /GJ_BACKUP_DIR[^;\n]*gj-export\.json/.test(ipc) && (ipc.match(/gj-export\.json/g) || []).length === 2);
+const wbk = await readFile(path.join(root, "src/ui/js/workbench.js"), "utf8");
+T("备份QA钩子真实点设置页导出/导入按钮", wbk.includes("demo-bexport") && wbk.includes("demo-bimport") && wbk.includes("#btnBackupExport") && wbk.includes("#btnBackupImport"));
 
 const loader = await readFile(path.join(root, "src/main/core-loader.cjs"), "utf8");
 T("core-loader导出build/parseBundle", loader.includes("buildBundle") && loader.includes("parseBundle"));

@@ -160,6 +160,12 @@ document.addEventListener("keydown", (e) => {
         else if (++n > 60) { clearInterval(t); toast("QA 失败：配图页没有可复制的素材图"); }
       }, 500);
     }, 4000);
+  } else if (h === "demo-bexport" || h === "demo-bimport") {
+    // 界面 QA：设置页真实点「导出/导入备份包」（配合 GJ_BACKUP_DIR 门控；原生对话框本身不自动化，口径见 CHANGELOG）
+    setTimeout(() => {
+      $('.tab[data-tab="settings"]').click();
+      setTimeout(() => $(h === "demo-bexport" ? "#btnBackupExport" : "#btnBackupImport").click(), 800);
+    }, 3500);
   } else if (h.startsWith("demo-wiz")) {
     // 界面 QA：打开成稿向导；--gj-tab=demo-wiz-run-N 真实执行第 N 步（需 GJ_AI_KEY + 长 GJ_SHOT_WAIT）
     setTimeout(() => {

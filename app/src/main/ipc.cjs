@@ -295,22 +295,33 @@ function registerIpc({ ipcMain, dialog, shell, clipboard, nativeImage, lib, serv
     } catch { /* 还没配过图就没有素材，不算错 */ }
     const text = lib.buildBundle({ data, assets });
     const def = `稿匠备份-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.json`;
-    const { canceled, filePath } = await dialog.showSaveDialog(getWindow(), { title: "导出备份包", defaultPath: def, filters: [{ name: "稿匠备份包", extensions: ["json"] }] });
-    if (canceled || !filePath) return null;
-    await fs.writeFile(filePath, text);
-    return { path: filePath, articles: data.articles.length, assets: Object.keys(assets).length, mb: (text.length / 1048576).toFixed(1) };
+    // GJ_BACKUP_DIR=<目录>：QA 留证专用，绕开原生保存框直接落该目录（正常用户环境不设，产品链路不变）
+    let outPath = process.env.GJ_BACKUP_DIR ? path.join(process.env.GJ_BACKUP_DIR, "gj-export.json") : null;
+    if (!outPath) {
+      const { canceled, filePath } = await dialog.showSaveDialog(getWindow(), { title: "导出备份包", defaultPath: def, filters: [{ name: "稿匠备份包", extensions: ["json"] }] });
+      if (canceled || !filePath) return null;
+      outPath = filePath;
+    }
+    await fs.writeFile(outPath, text);
+    return { path: outPath, articles: data.articles.length, assets: Object.keys(assets).length, mb: (text.length / 1048576).toFixed(1) };
   });
   ipcMain.handle("backup:import", async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(getWindow(), { title: "导入备份包", filters: [{ name: "稿匠备份包", extensions: ["json"] }], properties: ["openFile"] });
-    if (canceled || !filePaths[0]) return null;
-    const { data, assets, exportedAt } = lib.parseBundle(await fs.readFile(filePaths[0], "utf8"));
+    let inPath = process.env.GJ_BACKUP_DIR ? path.join(process.env.GJ_BACKUP_DIR, "gj-export.json") : null;
+    if (!inPath) {
+      const { canceled, filePaths } = await dialog.showOpenDialog(getWindow(), { title: "导入备份包", filters: [{ name: "稿匠备份包", extensions: ["json"] }], properties: ["openFile"] });
+      if (canceled || !filePaths[0]) return null;
+      inPath = filePaths[0];
+    }
+    const { data, assets, exportedAt } = lib.parseBundle(await fs.readFile(inPath, "utf8"));
     const when = exportedAt ? new Date(exportedAt).toLocaleString("zh-CN") : "时间未知";
-    const { response } = await dialog.showMessageBox(getWindow(), {
-      type: "warning", buttons: ["替换并导入", "取消"], defaultId: 1, cancelId: 1,
-      message: `导入这份备份：${(data.articles || []).length} 篇文章、${Object.keys(assets).length} 个素材（导出于 ${when}）`,
-      detail: "当前文章/设置/样式/素材/队列将被替换为备份内容（替换前自动把现有数据存为 .pre-import 文件，可手工找回）。\n密钥不在备份包里：导入后 AI/微信/生图 Key 需在本机重新填一次。",
-    });
-    if (response !== 0) return null;
+    if (!process.env.GJ_BACKUP_DIR) {
+      const { response } = await dialog.showMessageBox(getWindow(), {
+        type: "warning", buttons: ["替换并导入", "取消"], defaultId: 1, cancelId: 1,
+        message: `导入这份备份：${(data.articles || []).length} 篇文章、${Object.keys(assets).length} 个素材（导出于 ${when}）`,
+        detail: "当前文章/设置/样式/素材/队列将被替换为备份内容（替换前自动把现有数据存为 .pre-import 文件，可手工找回）。\n密钥不在备份包里：导入后 AI/微信/生图 Key 需在本机重新填一次。",
+      });
+      if (response !== 0) return null;
+    }
     for (const k of Object.keys(data)) {
       try { await fs.copyFile(path.join(store.dir, k + ".json"), path.join(store.dir, k + ".pre-import.json")); } catch { /* 该文件本来就不存在 */ }
       await store.save(k, data[k]);
