@@ -40,6 +40,10 @@ const soft = renderWeChatHtml("第一行\n第二行\n\n##### 五级标题\n\n> >
 T("段内软换行产出真实<br>而非字面文本", soft.includes("第一行<br>第二行") && !soft.includes("&lt;br&gt;"));
 T("五级标题不再漏出井号字面", soft.includes("<h3") && !soft.includes("#####"));
 T("嵌套引用剥掉多余尖括号", soft.includes("<blockquote") && !soft.includes("&gt; 嵌套"));
+const ref = renderWeChatHtml("见 [文档][1] 与 [别名][] 和 <https://auto.link>\n\n[1]: https://example.com\n[别名]: https://b.example\n\n未定义 [未知][9]", "青竹绿");
+T("引用式链接变角注且定义行剥除", ref.includes("文档<sup") && ref.includes("别名<sup") && !ref.includes("]: https://"));
+T("自动链接可见URL+角注", ref.includes("https://auto.link<sup"));
+T("未定义引用保留字面不误吞", ref.includes("未定义 [未知][9]"));
 
 // --- 接线：主进程两条剪贴板通道 + 体积闸门 ---
 const ipc = await readFile(path.join(root, "src/main/ipc.cjs"), "utf8");

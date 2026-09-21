@@ -23,6 +23,9 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   let html = md.replace(/\r\n/g, "\n");
+  // 引用式链接定义行 [id]: url 先收集并从正文剥掉（同类工具均支持，此前漏成字面）
+  const refs = {};
+  html = html.replace(/^[ \t]*\[([^\]]+)\]:[ \t]*(\S+)[ \t]*$/gm, (_, id, url) => { refs[id.toLowerCase()] = url; return ""; });
 
   // 行内元素处理函数
   const inline = (raw) => {
@@ -41,6 +44,18 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
     s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, txt, href) => {
       footnotes.push({ txt, href });
       return `${txt}<sup style="color:${t.accent};font-size:12px;">[${footnotes.length}]</sup>`;
+    });
+    // 引用式 [文字][id]（id 省略时按文字查）→ 同一套角注
+    s = s.replace(/\[([^\]]+)\]\[([^\]]*)\]/g, (m0, txt, id) => {
+      const url = refs[(id || txt).toLowerCase()];
+      if (!url) return m0;
+      footnotes.push({ txt, href: url });
+      return `${txt}<sup style="color:${t.accent};font-size:12px;">[${footnotes.length}]</sup>`;
+    });
+    // 自动链接 <https://…> → 可见 URL 文本 + 角注
+    s = s.replace(/&lt;((?:https?:\/\/|www\.)[^\s<>]+)&gt;/g, (_, url) => {
+      footnotes.push({ txt: url, href: /^https?:/i.test(url) ? url : "https://" + url });
+      return `${esc(url)}<sup style="color:${t.accent};font-size:12px;">[${footnotes.length}]</sup>`;
     });
     s = s.replace(/\*\*\*([^*]+)\*\*\*/g, `<strong style="color:${t.accent};font-weight:700;">$1</strong>`);
     s = s.replace(/\*\*([^*]+)\*\*/g, `<strong style="font-weight:700;">$1</strong>`);
