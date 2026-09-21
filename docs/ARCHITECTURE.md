@@ -9,7 +9,7 @@
 ```
 ┌──────────────────────────────────────────────────────┐
 │  ④ UI 层  src/ui/          纯展示与交互，零 Node 能力 │
-│      index.html + css/ + js/(6 个功能域脚本)          │
+│      index.html + css/ + js/(9 个功能域脚本)           │
 ├──────────────────────────────────────────────────────┤
 │  ③ 安全桥  src/preload/    contextBridge 白名单        │
 │      渲染进程只能调用这里显式列出的方法                 │
@@ -19,11 +19,14 @@
 │      services.cjs  设置存取/DPAPI 密钥/客户端工厂       │
 │      pipeline.cjs  发布流水线/定时执行体                │
 │      ipc.cjs       IPC 路由（薄转发，不含业务）         │
+│      core-loader.cjs 动态装载 core 层                  │
 ├──────────────────────────────────────────────────────┤
 │  ① 核心引擎  src/core/      平台无关纯 ESM，可独立单测  │
 │      ai.mjs        LLM 客户端 + 任务 prompt 注册表      │
 │      wechat.mjs    微信 API 客户端 + 错误码解释表       │
 │      md2wechat.mjs Markdown→微信 HTML 渲染器（主题化）  │
+│      imagegen.mjs  生图客户端（免Key免费源+自带Key源）  │
+│      backup.mjs    备份/迁移包（密钥双向硬拒）          │
 │      store.mjs     原子写 JSON 存储                     │
 │      scheduler.mjs 定时调度状态机                       │
 └──────────────────────────────────────────────────────┘
