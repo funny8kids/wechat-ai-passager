@@ -32,7 +32,9 @@ T("示例明示可删(HITL)", boot.includes("改它或删它"));
 T("种样例失败不阻塞启动", /catch \{[\s\S]{0,40}示例/.test(boot));
 
 const ed = await readFile(path.join(root, "src/ui/js/editor.js"), "utf8");
-T("Ctrl+S即存(对标同类编辑器肌肉记忆)", /ctrlKey[\s\S]{0,120}"s"[\s\S]{0,80}preventDefault\(\)[\s\S]{0,40}saveCur\(\)/.test(ed));
+const wb = await readFile(path.join(root, "src/ui/js/workbench.js"), "utf8");
+T("Ctrl+S即存且全局唯一注册(对标同类肌肉记忆)", /ctrlKey[\s\S]{0,160}["']s["'][\s\S]{0,80}saveCur\(\)/.test(wb) && !/keydown[\s\S]{0,160}saveCur/.test(ed), "编辑器快捷键统一在 workbench");
+T("打开已存文章即显已保存(首启不假告警)", ed.includes('st.textContent = "已保存 " + fmtTime(cur.updatedAt)'));
 
 const html = await readFile(path.join(root, "src/ui/index.html"), "utf8");
 T("样式卡有导出/导入按钮与结果位", html.includes("btnThemeExport") && html.includes("btnThemeImport") && html.includes("themePackResult"));
