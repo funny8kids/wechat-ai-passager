@@ -81,6 +81,7 @@ $("#btnAiTest").addEventListener("click", async () => {
 let IMG_PRESETS = [];
 function imgPreset(name) { return IMG_PRESETS.find((p) => p.name === name) || {}; }
 function imgKeyHintText(p) { return p.keyless ? "免 Key 免费源：不用填 Key 直接测。注意免费档带水印、中文长提示词偏弱（简短英文更稳）" : "去哪拿 Key：" + (p.keyHint || ""); }
+function applyImgModelHint(p) { $("#sImgModel").placeholder = p.keyless ? "免费直连无需模型名" : "如 cogview-3-flash"; }
 function fillImgSizes(presets, cur) {
   const sizes = presets.sizes || ["1024x1024"];
   $("#sImgSize").innerHTML = sizes.map((s) => `<option value="${s}"${s === cur ? " selected" : ""}>${s}</option>`).join("");
@@ -92,6 +93,7 @@ function applyImgPreset() {
   if (p.model) $("#sImgModel").value = p.model;
   $("#imgModelList").innerHTML = (p.models || []).map((m) => `<option value="${esc(m)}">`).join("");
   $("#imgKeyHint").textContent = imgKeyHintText(p);
+  applyImgModelHint(p);
   fillImgSizes(p, p.sizes?.[0]);
   toast(`已填入 ${$("#sImgPreset").value} 的端点与默认模型，点「保存设置」生效`);
 }
@@ -108,6 +110,7 @@ async function loadImgSettings() {
   const p = imgPreset($("#sImgPreset").value);
   $("#imgModelList").innerHTML = (p.models || []).map((m) => `<option value="${esc(m)}">`).join("");
   $("#imgKeyHint").textContent = imgKeyHintText(p);
+  applyImgModelHint(p);
   fillImgSizes(p, g.size);
 }
 $("#sImgPreset").addEventListener("change", applyImgPreset);

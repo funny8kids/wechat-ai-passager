@@ -122,6 +122,8 @@ const preload = await readFile(path.join(root, "src/preload/index.cjs"), "utf8")
 T("预加载暴露imgen三方法", preload.includes("imgenPresets:") && preload.includes("imgenTest:") && preload.includes("imgenRun:"));
 const wb = await readFile(path.join(root, "src/ui/js/workbench.js"), "utf8");
 T("有demo-imgtest截图钩子真实点击测试出图", wb.includes('"demo-imgtest"') && /demo-imgtest[\s\S]{0,320}#btnImgTest\"\)\.click/.test(wb));
+const set = await readFile(path.join(root, "src/ui/js/settings.js"), "utf8");
+T("免费源下模型框placeholder明示无需模型名", /applyImgModelHint/.test(set) && set.includes("免费直连无需模型名") && /applyImgPreset[\s\S]{0,500}applyImgModelHint\(p\)/.test(set));
 const html = await readFile(path.join(root, "src/ui/index.html"), "utf8");
 T("设置页有生图服务卡片", html.includes('id="sImgPreset"') && html.includes('id="btnImgTest"') && html.includes("生图服务"));
 const images = await readFile(path.join(root, "src/ui/js/images.js"), "utf8");
