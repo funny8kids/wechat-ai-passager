@@ -1,0 +1,46 @@
+// 带图复制闭环的行为级测试：渲染层带 dataURL、缺图显形、主进程/预加载/界面三处接线不丢
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { renderWeChatHtml } from "../src/core/md2wechat.mjs";
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const out = [];
+const T = (n, ok, d = "") => out.push(`${ok ? "OK  " : "FAIL"} ${n}${d ? "  [" + d + "]" : ""}`);
+
+const DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const md = "# 标题\n\n![测试图](gj-test.png)\n\n[图槽: 待落图]\n";
+
+// --- 渲染层：本地图有 dataURL 时，复制出的 HTML 自带图片 ---
+const withMap = renderWeChatHtml(md, "青竹绿", { imgMap: { "gj-test.png": DATA } });
+T("带图HTML含data:image", withMap.includes('<img src="' + DATA), withMap.slice(0, 60));
+T("带图HTML不出现未随带提示", !withMap.includes("图片未随带"));
+T("图题作为说明保留", withMap.includes(">测试图</span>"));
+
+// --- 渲染层：素材缺失时显形，不静默产出坏图 ---
+const noMap = renderWeChatHtml(md, "青竹绿", {});
+T("缺素材时给可见补图提示", noMap.includes("图片未随带：测试图") && noMap.includes("复制此图"));
+T("缺素材时不留坏img标签", !/<img src="gj-test\.png"/.test(noMap));
+T("槽位渲染为可见虚线标签", noMap.includes("图槽：待落图"));
+const ext = renderWeChatHtml("![外链](https://cdn.example.com/a.png)", "青竹绿", {});
+T("外链图原样保留不误伤", ext.includes('<img src="https://cdn.example.com/a.png"'));
+
+// --- 接线：主进程两条剪贴板通道 + 体积闸门 ---
+const ipc = await readFile(path.join(root, "src/main/ipc.cjs"), "utf8");
+T("主进程有clipboard:writeRich", ipc.includes('"clipboard:writeRich"'));
+T("主进程有clipboard:writeImage逐张补图通道", ipc.includes('"clipboard:writeImage"'));
+T("writeImage只认素材库文件名(防穿越)", /clipboard:writeImage[\s\S]{0,400}path\.basename/.test(ipc));
+T("复制前有8MB体积闸门", /html\.length > 8_000_000/.test(ipc));
+
+// --- 接线：预加载白名单 + 配图页按钮 ---
+const preload = await readFile(path.join(root, "src/preload/index.cjs"), "utf8");
+T("预加载暴露copyRich/copyImage", preload.includes("copyRich:") && preload.includes("copyImage:"));
+const images = await readFile(path.join(root, "src/ui/js/images.js"), "utf8");
+T("配图页每张图有复制此图按钮", images.includes("复制此图") && images.includes("window.api.copyImage("));
+const workbench = await readFile(path.join(root, "src/ui/js/workbench.js"), "utf8");
+T("复制成功文案承诺带图+逐张补", workbench.includes("正文图片已随带") && workbench.includes("复制此图"));
+
+console.log(out.join("\n"));
+const failed = out.filter((l) => l.startsWith("FAIL"));
+console.log(`\n带图复制：${out.length - failed.length}/${out.length} 通过`);
+if (failed.length) process.exit(1);

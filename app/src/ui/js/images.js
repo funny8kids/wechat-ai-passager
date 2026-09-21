@@ -101,6 +101,7 @@ function imgCard(it) {
       <div class="intent">${esc(it.alt || "图片")}</div>
       <div class="prompt muted small" style="min-height:0">素材文件：${esc(it.name)} · 发布时自动转存微信 CDN</div>
       <div class="ops">
+        <button class="btn sm copyi">复制此图</button>
         <button class="btn sm replacei">更换图片</button>
         <button class="btn sm danger deletei">移除图片</button>
       </div>
@@ -110,6 +111,10 @@ function imgCard(it) {
     th.innerHTML = url ? `<img src="${url}" alt="${esc(it.alt || "配图")}">` : `<span class="muted small">素材文件缺失</span>`;
     th.prepend(Object.assign(document.createElement("span"), { className: "badge stchip done", textContent: "已成图" }));
   });
+  div.querySelector(".copyi").onclick = async () => {
+    const err = await window.api.copyImage(it.name);
+    toast(err || "已复制这张图 → 公众号后台图片位置直接 Ctrl+V 即上传");
+  };
   div.querySelector(".replacei").onclick = async () => {
     const p = await window.api.pickImage();
     if (!p) return;

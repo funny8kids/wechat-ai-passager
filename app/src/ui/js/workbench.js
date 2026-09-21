@@ -73,7 +73,7 @@ $("#btnCopyRich").addEventListener("click", async () => {
   if (!node || !node.textContent.trim()) return toast("先把「布局」切到含预览的档位，让右侧渲染出来再复制");
   // 经主进程写 HTML Format：不依赖窗口焦点，粘贴到公众号后台保留内联样式
   const err = await window.api.copyRich(node.innerHTML, node.innerText);
-  toast(err ? err : "已复制排版好的富文本 → 公众号后台编辑器 Ctrl+V。注意：本地图不会随复制进后台，需手动插入");
+  toast(err ? err : "已复制排版好的富文本（正文图片已随带）→ 公众号后台编辑器 Ctrl+V。个别图若未显示：到配图页「复制此图」逐张补");
 });
 
 // ---------- 快捷键 ----------
@@ -130,6 +130,13 @@ document.addEventListener("keydown", (e) => {
   } else if (h === "demo-copyrich") {
     // 界面 QA：真实点击「复制富文本」→ 外部脚本回读 Windows 剪贴板 HTML 验证降级产物
     setTimeout(() => { $('.tab[data-tab="write"]').click(); $("#btnCopyRich").click(); }, 3500);
+  } else if (h === "demo-copyimg") {
+    // 界面 QA：配图页真实点「复制此图」→ 外部脚本回读剪贴板位图，验证逐张补图兜底通道
+    setTimeout(() => {
+      $('.tab[data-tab="images"]').click();
+      const b = document.querySelector("#slotList .copyi");
+      if (b) b.click(); else toast("QA 失败：配图页没有可复制的素材图");
+    }, 4000);
   } else if (h.startsWith("demo-wiz")) {
     // 界面 QA：打开成稿向导；--gj-tab=demo-wiz-run-N 真实执行第 N 步（需 GJ_AI_KEY + 长 GJ_SHOT_WAIT）
     setTimeout(() => {

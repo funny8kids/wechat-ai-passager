@@ -26,8 +26,9 @@ npm start
 |---|---|
 | `npm start` | 开发运行（每次改 ui/core/main 代码后重启生效） |
 | `npm run lint` | 语法门禁（提交前必跑，见 ADR-009） |
-| `npm run verify` | 端到端文章质量验证（真实调用 AI，19 项断言，需环境变量 `GJ_AI_KEY`） |
+| `npm run verify` | 端到端文章质量验证（真实调用 AI，21 项断言，需环境变量 `GJ_AI_KEY`） |
 | `npm run check <AppID> <AppSecret>` | 微信 API 权限只读探测（不做任何写操作） |
+| `npm run qa:clipboard` | 真实剪贴板留证：起应用真点「复制富文本/复制此图」，断言产物带图（需桌面会话，自备并清理留证数据） |
 | `npm run dist` | 打包便携 exe → `dist/gaojiang-<ver>-portable.exe` |
 
 打包镜像变量（首次需设置）：
@@ -66,8 +67,8 @@ set ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-buil
 
 ## 提交流程
 
-1. `npm run lint` 通过
-2. 改了生成链路 → `npm run verify` 19/19
+1. `npm run lint` + `npm test` 通过
+2. 改了生成链路 → `npm run verify` 21/21；改了复制/配图链路 → `npm run qa:clipboard` 6/6
 3. 界面改动需实际启动应用确认动态渲染（列表/评分/预览有内容），**不接受"窗口出现=正常"**
 4. git 提交（仓库根），信息写清动机；重要设计变化 → docs/DECISIONS.md 补 ADR
 5. 发版：改 `package.json` version → `npm run dist` → 实测 exe → 更新 CHANGELOG

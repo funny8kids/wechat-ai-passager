@@ -15,7 +15,7 @@ async function updatePubBanner() {
   b.className = "chanbanner show";
   if (!s.appSecretSet) {
     b.classList.add("warn");
-    b.innerHTML = `<span class="grow"><b>未接入微信 API：正式发布方式为「复制富文本」</b><br>写作页点「复制富文本」→ 公众号后台编辑器 Ctrl+V，排版样式全保留（正文图片需后台手动插入）。要一键送草稿箱/定时发布？到设置填 AppID/AppSecret 并自检。</span><button class="btn sm" id="bnGoSet">去设置</button><button class="btn sm primary" id="bnGoCopy">去写作页复制</button>`;
+    b.innerHTML = `<span class="grow"><b>未接入微信 API：正式发布方式为「复制富文本」</b><br>写作页点「复制富文本」→ 公众号后台编辑器 Ctrl+V，排版样式与正文图片全保留（个别图未显示时到配图页「复制此图」逐张补）。要一键送草稿箱/定时发布？到设置填 AppID/AppSecret 并自检。</span><button class="btn sm" id="bnGoSet">去设置</button><button class="btn sm primary" id="bnGoCopy">去写作页复制</button>`;
   } else if (chip === "API 异常") {
     b.classList.add("warn");
     b.innerHTML = `<span class="grow"><b>微信 API 自检未通过</b>（见状态栏「API 异常」）：常见为 IP 未加白名单（40164）或账号无草稿权限（48001，未认证个人订阅号）。修好前请用正式方案「复制富文本」发布。</span><button class="btn sm" id="bnGoSet">去重新自检</button><button class="btn sm primary" id="bnGoCopy">去写作页复制</button>`;

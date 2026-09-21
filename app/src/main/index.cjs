@@ -1,6 +1,6 @@
 // 稿匠 · Electron 主进程入口
 // 职责：应用生命周期、窗口/托盘、依赖装配。业务逻辑在 services / pipeline / ipc 模块中。
-const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, safeStorage, dialog, shell, clipboard } = require("electron");
+const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, safeStorage, dialog, shell, clipboard, nativeImage } = require("electron");
 const path = require("path");
 
 const { loadCore } = require("./core-loader.cjs");
@@ -98,7 +98,7 @@ if (!gotLock) {
       });
 
       registerIpc({
-        ipcMain, dialog, shell, clipboard, lib, services, pipeline,
+        ipcMain, dialog, shell, clipboard, nativeImage, lib, services, pipeline,
         getScheduled: () => scheduler,
         getWindow: () => win,
       });

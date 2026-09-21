@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld("api", {
   pickImage: () => ipcRenderer.invoke("dialog:pickImage"),
   openDataDir: () => ipcRenderer.invoke("app:openDataDir"),
   copyRich: (html, text) => ipcRenderer.invoke("clipboard:writeRich", { html, text }),
+  copyImage: (name) => ipcRenderer.invoke("clipboard:writeImage", name),
   importAsset: (srcPath) => ipcRenderer.invoke("assets:import", srcPath),
   assetDataUrl: (name) => ipcRenderer.invoke("asset:dataUrl", name),
   // 微信

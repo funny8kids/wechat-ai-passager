@@ -24,9 +24,13 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
     let s = esc(raw);
     // 图片
     s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, alt, src) => {
-      const url = imgMap[src] || src;
-      const warn = /^(f|file|http:\/\/localhost)/i.test(src) && !imgMap[src];
-      return `<img src="${url}" alt="${alt}" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:14px auto;" ${warn ? 'data-local="1"' : ""}>${alt ? `<span style="display:block;font-size:12px;color:${t.quote};text-align:center;margin-top:4px;">${alt}</span>` : ""}`;
+      const mapped = imgMap[src];
+      // 本地图没拿到 dataURL/CDN：输出可见提示，绝不留一个微信必然吃掉的坏 src（静默丢图）
+      if (!mapped && !/^https?:/i.test(src)) {
+        return `<span style="display:block;border:1px dashed ${t.accent};color:${t.accent};border-radius:8px;padding:10px 8px;text-align:center;font-size:13px;margin:14px auto;background:rgba(0,0,0,.02);">图片未随带：${esc(alt || src)}（到配图页「复制此图」补上）</span>`;
+      }
+      const url = mapped || src;
+      return `<img src="${url}" alt="${alt}" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:14px auto;">${alt ? `<span style="display:block;font-size:12px;color:${t.quote};text-align:center;margin-top:4px;">${alt}</span>` : ""}`;
     });
     // 链接 → 角注（微信正文外链不可点）
     s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, txt, href) => {

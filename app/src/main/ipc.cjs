@@ -7,7 +7,7 @@ const HOT_BASE = "https://60s-api.viki.moe/v2"; // 开源聚合热榜（vikiboss
 const HOT_PLATFORMS = ["weibo", "zhihu", "toutiao", "douyin"];
 const HOT_TTL_MS = 5 * 60 * 1000;
 
-function registerIpc({ ipcMain, dialog, shell, clipboard, lib, services, pipeline, getScheduled, getWindow }) {
+function registerIpc({ ipcMain, dialog, shell, clipboard, nativeImage, lib, services, pipeline, getScheduled, getWindow }) {
   const { store, getSettings, setSettings, getSecrets, setSecrets, aiClient, wxClient, listThemes, saveTheme, deleteTheme, renderHtml } = services;
 
   // ---------- 设置与密钥 ----------
@@ -165,13 +165,27 @@ function registerIpc({ ipcMain, dialog, shell, clipboard, lib, services, pipelin
   ipcMain.handle("autosave:get", () => store.load("autosave", null));
 
   // ---------- 复制富文本：主进程写剪贴板（HTML Format），不受渲染层焦点限制 ----------
+  // GJ_CLIP_DUMP=<路径>：QA 留证用，把真实写进剪贴板的产物落盘供断言（正常用户环境不设此变量）
   ipcMain.handle("clipboard:writeRich", (e, { html, text } = {}) => {
     if (typeof html !== "string" || !html.trim()) return "内容为空";
-    if (html.length > 8_000_000) return "内容过大（>8MB），先精简图片或正文";
+    if (html.length > 8_000_000) return "内容过大（>8MB）：到配图页用「复制此图」逐张补，或压缩大图后重试";
     try {
       clipboard.writeHTML(html, typeof text === "string" ? text : "");
+      if (process.env.GJ_CLIP_DUMP) fs.writeFile(process.env.GJ_CLIP_DUMP, html, () => {});
       return null; // null = 成功
     } catch (err) { return "写入剪贴板失败：" + err.message; }
+  });
+  // 单张素材图以位图写入剪贴板：公众号后台图片位直接 Ctrl+V 即上传（带图复制的兜底通道）
+  ipcMain.handle("clipboard:writeImage", async (e, name) => {
+    const base = path.basename(String(name || "")); // 只认素材库文件名，防目录穿越
+    try {
+      const buf = await fs.readFile(path.join(store.dir, "assets", base));
+      const img = nativeImage.createFromBuffer(buf);
+      if (img.isEmpty()) return "无法识别的图片格式";
+      clipboard.writeImage(img);
+      if (process.env.GJ_CLIP_DUMP) fs.writeFile(process.env.GJ_CLIP_DUMP + ".img", buf, () => {});
+      return null;
+    } catch (err) { return "复制图片失败：" + err.message; }
   });
 
   // ---------- 微信 ----------

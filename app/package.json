@@ -9,19 +9,27 @@
     "check": "node scripts/check-wechat.mjs",
     "verify": "node scripts/verify-article.mjs",
     "lint": "node scripts/lint.mjs",
-    "test": "node scripts/test-stability.mjs && node scripts/test-poller.mjs && node scripts/test-schedule.mjs",
-    "dist": "electron-builder --win portable"
+    "test": "node scripts/test-stability.mjs && node scripts/test-poller.mjs && node scripts/test-schedule.mjs && node scripts/test-richcopy.mjs",
+    "dist": "electron-builder --win portable",
+    "qa:clipboard": "node scripts/qa-clipboard.mjs"
   },
   "license": "MIT",
   "author": "稿匠",
   "build": {
     "appId": "com.gaojiang.desktop",
     "productName": "稿匠",
-    "directories": { "output": "dist" },
+    "directories": {
+      "output": "dist"
+    },
     "asar": false,
-    "files": ["src/**/*", "package.json"],
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
     "win": {
-      "target": ["portable"],
+      "target": [
+        "portable"
+      ],
       "icon": "resources/icon.png"
     },
     "portable": {
