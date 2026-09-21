@@ -33,6 +33,7 @@ function openArticle(a) {
   cur = JSON.parse(JSON.stringify(a));
   $("#fTitle").value = cur.title; $("#editor").value = cur.md; $("#fTheme").value = cur.theme || "青竹绿";
   snapshots = [];
+  const st = $("#saveState"); st.textContent = "已保存 " + fmtTime(cur.updatedAt); st.classList.remove("dirty");
   renderArticleListOnly(); renderPreview(); renderBlocks(); updateScore();
 }
 function renderArticleListOnly() {
