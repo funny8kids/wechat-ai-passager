@@ -11,6 +11,7 @@ async function loadCore() {
   const md = await import(url("md2wechat.mjs"));
   const store = await import(url("store.mjs"));
   const sched = await import(url("scheduler.mjs"));
+  const img = await import(url("imagegen.mjs"));
   return {
     WeChatClient: wechat.WeChatClient,
     explainError: wechat.explainError,
@@ -22,6 +23,8 @@ async function loadCore() {
     BUILTIN_THEMES: md.BUILTIN_THEMES,
     JsonStore: store.JsonStore,
     Scheduler: sched.Scheduler,
+    ImageGenClient: img.ImageGenClient,
+    IMAGE_PRESETS: img.IMAGE_PRESETS,
   };
 }
 

@@ -20,6 +20,8 @@ async function loadSettings() {
   $("#sAppId").value = sec.appId || "";
   $("#sAiKey").placeholder = sec.aiKeySet ? "已设置（留空=不修改）" : "填入 API Key";
   $("#sAppSecret").placeholder = sec.appSecretSet ? "已设置（留空=不修改）" : "填入 AppSecret";
+  $("#sImgKey").placeholder = sec.imgKeySet ? "已设置（留空=不修改）" : "填入生图 API Key";
+  await loadImgSettings();
   await refreshThemeSelect();
   fillDefaultTheme();
   renderThemes();
@@ -75,22 +77,83 @@ $("#btnAiTest").addEventListener("click", async () => {
   } finally { b.disabled = false; }
 });
 
+// ---------- 生图服务：预设取自核心模块（国内可达端点），表单直测不必先保存 ----------
+let IMG_PRESETS = [];
+function imgPreset(name) { return IMG_PRESETS.find((p) => p.name === name) || {}; }
+function fillImgSizes(presets, cur) {
+  const sizes = presets.sizes || ["1024x1024"];
+  $("#sImgSize").innerHTML = sizes.map((s) => `<option value="${s}"${s === cur ? " selected" : ""}>${s}</option>`).join("");
+}
+function applyImgPreset() {
+  const p = imgPreset($("#sImgPreset").value);
+  if (!p.baseUrl && !p.models) return;
+  if (p.baseUrl) $("#sImgBaseUrl").value = p.baseUrl;
+  if (p.model) $("#sImgModel").value = p.model;
+  $("#imgModelList").innerHTML = (p.models || []).map((m) => `<option value="${esc(m)}">`).join("");
+  $("#imgKeyHint").textContent = "去哪拿 Key：" + (p.keyHint || "");
+  fillImgSizes(p, p.sizes?.[0]);
+  toast(`已填入 ${$("#sImgPreset").value} 的端点与默认模型，点「保存设置」生效`);
+}
+async function loadImgSettings() {
+  if (!IMG_PRESETS.length) {
+    try { IMG_PRESETS = await window.api.imgenPresets(); } catch (e) { IMG_PRESETS = []; }
+  }
+  if (!IMG_PRESETS.length) { $("#imgKeyHint").textContent = "生图预设加载失败：重启应用重试"; return; }
+  $("#sImgPreset").innerHTML = IMG_PRESETS.map((p) => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join("");
+  const g = settings.imgGen || {};
+  if (g.provider && IMG_PRESETS.some((p) => p.name === g.provider)) $("#sImgPreset").value = g.provider;
+  $("#sImgBaseUrl").value = g.baseUrl || imgPreset($("#sImgPreset").value).baseUrl || "";
+  $("#sImgModel").value = g.model || imgPreset($("#sImgPreset").value).model || "";
+  const p = imgPreset($("#sImgPreset").value);
+  $("#imgModelList").innerHTML = (p.models || []).map((m) => `<option value="${esc(m)}">`).join("");
+  $("#imgKeyHint").textContent = "去哪拿 Key：" + (p.keyHint || "");
+  fillImgSizes(p, g.size);
+}
+$("#sImgPreset").addEventListener("change", applyImgPreset);
+$("#btnImgTest").addEventListener("click", async () => {
+  const b = $("#btnImgTest"); b.disabled = true;
+  $("#imgTestResult").textContent = "正在真实生成一张图（约 5~30 秒）…";
+  $("#imgTestResult").className = "small muted";
+  try {
+    const r = await window.api.imgenTest({
+      provider: $("#sImgPreset").value, baseUrl: $("#sImgBaseUrl").value,
+      model: $("#sImgModel").value, size: $("#sImgSize").value, imgKey: $("#sImgKey").value,
+    });
+    $("#imgTestResult").textContent = `✓ ${r.ms}ms，出图 ${(r.bytes / 1024).toFixed(0)}KB（.${r.ext}）→ 可以到配图页一键出图了`;
+    $("#imgTestResult").className = "small ok-text";
+  } catch (e) {
+    $("#imgTestResult").textContent = "✗ " + e.message;
+    $("#imgTestResult").className = "small bad-text";
+  } finally { b.disabled = false; }
+});
+$("#btnClearImgKey").onclick = async () => {
+  if (!confirm("删除本机保存的生图 Key？配图页「AI 出图」将不可用，直到重新填入")) return;
+  await window.api.setSecrets({ imgKey: "" });
+  toast("生图 Key 已从本机删除");
+  loadSettings();
+};
+
 $("#btnSaveSettings").onclick = async () => {
   await window.api.setSettings({
     baseUrl: $("#sBaseUrl").value.trim(), model: $("#sModel").value.trim(),
     temperature: Number($("#sTempRange").value), maxTokens: Number($("#sMaxTokens").value) || 0,
     agentParams: collectAgentParams(),
     confirmBeforePublish: $("#sConfirm").checked, autoRetry: $("#sRetry").checked,
+    imgGen: {
+      provider: $("#sImgPreset").value, baseUrl: $("#sImgBaseUrl").value.trim(),
+      model: $("#sImgModel").value.trim(), size: $("#sImgSize").value,
+    },
   });
   const patch = {};
   if ($("#sAiKey").value.trim()) patch.aiKey = $("#sAiKey").value.trim();
   if ($("#sAppSecret").value.trim()) patch.appSecret = $("#sAppSecret").value.trim();
   if ($("#sAppId").value.trim()) patch.appId = $("#sAppId").value.trim();
+  if ($("#sImgKey").value.trim()) patch.imgKey = $("#sImgKey").value.trim();
   let encNote = "";
   if (Object.keys(patch).length) {
     const r = await window.api.setSecrets(patch);
     encNote = r.encrypted ? "（已加密存储）" : "（⚠ 本机加密不可用，密钥以明文存在本地，请注意电脑安全）";
-    $("#sAiKey").value = ""; $("#sAppSecret").value = "";
+    $("#sAiKey").value = ""; $("#sAppSecret").value = ""; $("#sImgKey").value = "";
   }
   toast("设置已保存" + encNote);
   loadSettings();

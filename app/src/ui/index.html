@@ -254,6 +254,25 @@
       </div>
     </div>
     <div class="card">
+      <div class="cardhead"><b><svg class="ic ai"><use href="#i-image"/></svg>生图服务（配图页一键出图）</b><span class="muted small">用你自己的 Key，出图直接落进素材库；不配也能用，改为「选本地图片」</span></div>
+      <div class="grid2">
+        <label>服务商预设<select id="sImgPreset" class="select"></select></label>
+        <label>模型<input id="sImgModel" placeholder="cogview-3-flash" list="imgModelList"><datalist id="imgModelList"></datalist>
+          <span class="small muted" id="imgKeyHint"></span>
+        </label>
+        <label class="span2">Base URL<input id="sImgBaseUrl" placeholder="https://open.bigmodel.cn/api/paas/v4"></label>
+        <label>出图尺寸<select id="sImgSize" class="select"></select></label>
+        <label>API Key
+          <div class="keyrow"><input id="sImgKey" type="password" placeholder="留空=不修改" autocomplete="off"><button id="btnClearImgKey" class="btn sm ghost" title="删除本机保存的 Key（留空≠删除）">清除</button></div>
+          <span class="small muted">Key 经 DPAPI 加密只存本机，绝不上传</span>
+        </label>
+      </div>
+      <div class="pubrow" style="margin-top:12px">
+        <button id="btnImgTest" class="btn"><svg class="ic ai"><use href="#i-image"/></svg>测试出图（真实生成一张）</button>
+        <span id="imgTestResult" class="small muted"></span>
+      </div>
+    </div>
+    <div class="card">
       <div class="cardhead"><b><svg class="ic wx"><use href="#i-key"/></svg>微信公众号</b><span class="muted small">未认证个人订阅号可能无草稿/发布权限（48001），自检不通时用「复制富文本」发布</span></div>
       <div class="grid2">
         <label>AppID<input id="sAppId" placeholder="wx…" autocomplete="off">

@@ -50,6 +50,7 @@ function slotCard(it, no, md) {
       <div class="prompt" contenteditable="true" spellcheck="false">${esc(saved || PROMPT_PH)}</div>
       <div class="ops">
         <button class="btn sm ai genp">AI 生成提示词</button>
+        <button class="btn sm ai genimg">AI 出图</button>
         <button class="btn sm picki">选本地图片</button>
         <button class="btn sm danger delslot">删掉槽位</button>
       </div>
@@ -75,6 +76,34 @@ function slotCard(it, no, md) {
       else { promptEl.textContent = "AI 返回异常：" + (JSON.stringify(json) || "").slice(0, 80); promptEl.classList.add("ph"); }
     } catch (err) { promptEl.textContent = "失败：" + err.message; promptEl.classList.add("ph"); }
     e.target.disabled = false; e.target.textContent = "AI 生成提示词";
+  };
+  div.querySelector(".genimg").onclick = async (e) => {
+    const btn = e.target;
+    const prompt = promptEl.classList.contains("ph") ? "" : promptEl.textContent.trim();
+    if (!prompt) { toast("先写画面提示词（或点「AI 生成提示词」），再出图"); promptEl.focus(); return; }
+    btn.disabled = true; btn.textContent = "生成中…（约 10~60 秒）";
+    try {
+      const r = await window.api.imgenRun(prompt);
+      const url = await window.api.assetDataUrl(r.name);
+      const th = div.querySelector(".thumb");
+      th.innerHTML = `<span class="badge">AI 出图 · 待你确认</span><img src="${url || ""}" alt="AI 生成的候选配图">`;
+      const ops = div.querySelector(".ops");
+      ops.innerHTML = "";
+      const keep = document.createElement("button"); keep.className = "btn sm primary"; keep.textContent = "用这张落正文";
+      const drop = document.createElement("button"); drop.className = "btn sm ghost"; drop.textContent = "弃用，换提示词重试";
+      keep.onclick = () => {
+        const ta = $("#editor");
+        ta.value = ta.value.replace(it.full, `![${it.intent}](${r.name})`);
+        pushSnapshot(); markDirty(); renderSlots(); renderPreview();
+        toast("已落图（发布时自动转存为微信 CDN 图）", "撤销", undoSnapshot);
+      };
+      drop.onclick = () => { renderSlots(); promptEl.focus(); };
+      ops.append(keep, drop);
+      toast(`已生成 ${(r.bytes / 1024).toFixed(0)}KB，确认后才写进正文`);
+    } catch (err) {
+      toast("生图失败：" + err.message);
+      btn.disabled = false; btn.textContent = "AI 出图";
+    }
   };
   div.querySelector(".picki").onclick = async () => {
     const p = await window.api.pickImage();

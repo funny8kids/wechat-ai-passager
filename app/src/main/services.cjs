@@ -19,6 +19,8 @@ const DEFAULT_SETTINGS = {
     调研: { model: "", temperature: 0.5 },
     审核: { model: "", temperature: 0.3 },
   },
+  // 生图：默认指向国内可达的免费端点，Key 由用户自带（加密存储，绝不落明文）
+  imgGen: { provider: "智谱 CogView", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "cogview-3-flash", size: "1024x1024" },
 };
 
 function createServices({ lib, safeStorage, dataDir }) {
@@ -42,7 +44,7 @@ function createServices({ lib, safeStorage, dataDir }) {
   async function getSecrets() {
     const raw = await store.load("secrets", {});
     const dec = (v) => (v && safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(Buffer.from(v, "base64")) : v);
-    return { appId: raw.appId || "", appSecret: dec(raw.appSecretEnc) || "", aiKey: dec(raw.aiKeyEnc) || "" };
+    return { appId: raw.appId || "", appSecret: dec(raw.appSecretEnc) || "", aiKey: dec(raw.aiKeyEnc) || "", imgKey: dec(raw.imgKeyEnc) || "" };
   }
   async function setSecrets(patch) {
     const raw = await store.load("secrets", {});
@@ -51,8 +53,10 @@ function createServices({ lib, safeStorage, dataDir }) {
     if (patch.appId !== undefined) raw.appId = patch.appId;
     if (patch.appSecret !== undefined) raw.appSecretEnc = patch.appSecret ? enc(patch.appSecret) : undefined;
     if (patch.aiKey !== undefined) raw.aiKeyEnc = patch.aiKey ? enc(patch.aiKey) : undefined;
+    if (patch.imgKey !== undefined) raw.imgKeyEnc = patch.imgKey ? enc(patch.imgKey) : undefined;
     if (!raw.appSecretEnc) delete raw.appSecretEnc;
     if (!raw.aiKeyEnc) delete raw.aiKeyEnc;
+    if (!raw.imgKeyEnc) delete raw.imgKeyEnc;
     await store.save("secrets", raw);
     return { ok: true, encrypted: safeStorage.isEncryptionAvailable() };
   }
@@ -62,6 +66,7 @@ function createServices({ lib, safeStorage, dataDir }) {
     if (env.GJ_AI_KEY) patch.aiKey = env.GJ_AI_KEY;
     if (env.GJ_APPID) patch.appId = env.GJ_APPID;
     if (env.GJ_APPSECRET) patch.appSecret = env.GJ_APPSECRET;
+    if (env.GJ_IMG_KEY) patch.imgKey = env.GJ_IMG_KEY;
     if (Object.keys(patch).length) await setSecrets(patch);
   }
 
@@ -127,7 +132,24 @@ function createServices({ lib, safeStorage, dataDir }) {
     });
   }
 
-  return { store, init, getSettings, setSettings, getSecrets, setSecrets, bootstrapSecretsFromEnv, listThemes, saveTheme, deleteTheme, renderHtml, wxClient, aiClient };
+  // 生图客户端：override = 设置页表单直测（未保存也能测），留空字段回落已保存配置
+  async function imgClient(override = {}) {
+    const [s, sec] = await Promise.all([getSettings(), getSecrets()]);
+    const cfg = { ...(DEFAULT_SETTINGS.imgGen || {}), ...(s.imgGen || {}) };
+    const preset = lib.IMAGE_PRESETS[override.provider || cfg.provider] || lib.IMAGE_PRESETS[cfg.provider] || {};
+    const baseUrl = (override.baseUrl || "").trim() || cfg.baseUrl || preset.baseUrl || "";
+    const model = (override.model || "").trim() || cfg.model || preset.model || "";
+    const key = (override.imgKey || "").trim() || sec.imgKey;
+    if (!key) throw new Error("未填生图 API Key（设置 → 生图服务，Key 只加密存本机）");
+    if (!baseUrl || !model) throw new Error("生图端点或模型名为空：选一个服务商预设，或在「自定义」里填 baseUrl + model");
+    return new lib.ImageGenClient({
+      baseUrl, model, apiKey: key,
+      size: override.size || cfg.size || preset.sizes?.[0],
+      sizeField: preset.sizeField || "size",
+    });
+  }
+
+  return { store, init, getSettings, setSettings, getSecrets, setSecrets, bootstrapSecretsFromEnv, listThemes, saveTheme, deleteTheme, renderHtml, wxClient, aiClient, imgClient };
 }
 
 module.exports = { createServices, DEFAULT_SETTINGS };

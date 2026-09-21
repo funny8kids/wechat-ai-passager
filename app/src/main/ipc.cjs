@@ -15,7 +15,7 @@ function registerIpc({ ipcMain, dialog, shell, clipboard, nativeImage, lib, serv
   ipcMain.handle("settings:set", (e, patch) => setSettings(patch));
   ipcMain.handle("secrets:get", async () => {
     const s = await getSecrets();
-    return { appId: s.appId, appSecretSet: !!s.appSecret, aiKeySet: !!s.aiKey };
+    return { appId: s.appId, appSecretSet: !!s.appSecret, aiKeySet: !!s.aiKey, imgKeySet: !!s.imgKey };
   });
   ipcMain.handle("secrets:set", (e, patch) => setSecrets(patch));
 
@@ -159,6 +159,27 @@ function registerIpc({ ipcMain, dialog, shell, clipboard, nativeImage, lib, serv
     return name; // 相对 assets 目录的文件名，md 中写 ![](assets名)
   });
   ipcMain.handle("asset:dataUrl", (e, name) => readAssetDataUrl(name));
+
+  // ---------- 生图：配图页一键出图（用户自带 Key，国内可达端点） ----------
+  ipcMain.handle("imgen:presets", () => Object.entries(lib.IMAGE_PRESETS).map(([name, p]) => ({ name, ...p })));
+  ipcMain.handle("imgen:test", async (e, override) => {
+    const c = await services.imgClient(override || {}); // 表单直测：不保存也能测
+    const t0 = Date.now();
+    const imgs = await c.generate("一只橘猫趴在窗台上晒太阳，暖色光线，写实摄影，浅景深");
+    return { ms: Date.now() - t0, bytes: imgs[0].buf.length, ext: imgs[0].ext };
+  });
+  ipcMain.handle("imgen:run", async (e, { prompt } = {}) => {
+    const text = String(prompt || "").trim();
+    if (!text) throw new Error("画面提示词为空：先在提示词框里写画面描述，或点「AI 生成提示词」");
+    const c = await services.imgClient({});
+    const imgs = await c.generate(text);
+    const buf = imgs[0].buf;
+    if (!buf || !buf.length) throw new Error("生图接口返回了空图片，换模型或稍后重试");
+    const name = "ai-" + Date.now().toString(36) + "." + (imgs[0].ext || "png");
+    await fs.writeFile(path.join(store.dir, "assets", name), buf);
+    _duCache.delete(name);
+    return { name, bytes: buf.length };
+  });
 
   // ---------- 崩溃保护：编辑中内容实时暂存，重启可恢复未保存修改 ----------
   ipcMain.handle("autosave:set", (e, data) => (data ? store.save("autosave", { ...data, ts: Date.now() }) : store.save("autosave", null)));

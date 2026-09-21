@@ -37,6 +37,10 @@ contextBridge.exposeInMainWorld("api", {
   copyImage: (name) => ipcRenderer.invoke("clipboard:writeImage", name),
   importAsset: (srcPath) => ipcRenderer.invoke("assets:import", srcPath),
   assetDataUrl: (name) => ipcRenderer.invoke("asset:dataUrl", name),
+  // 生图
+  imgenPresets: () => ipcRenderer.invoke("imgen:presets"),
+  imgenTest: (override) => ipcRenderer.invoke("imgen:test", override),
+  imgenRun: (prompt) => ipcRenderer.invoke("imgen:run", { prompt }),
   // 微信
   wxSelfTest: (override) => ipcRenderer.invoke("wx:selftest", override),
   wxSaveDraft: (article) => ipcRenderer.invoke("wx:saveDraft", article),
