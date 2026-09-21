@@ -14,7 +14,7 @@ const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gj-pipe-"));
 await fs.mkdir(path.join(dir, "assets"), { recursive: true });
 await fs.writeFile(path.join(dir, "assets", "pic1.png"), Buffer.from("89504e470d0a1a0a0000000d49484452", "hex"));
 
-function mk({ article, settings = {}, clientOver = {} }) {
+function mk({ article, settings = {}, clientOver = {}, secrets = { appId: "wx1", appSecret: "s1" } }) {
   const calls = { uploads: [], drafts: [], publishes: [], thumbs: [] };
   const updates = [];
   const notes = [];
@@ -28,6 +28,7 @@ function mk({ article, settings = {}, clientOver = {} }) {
   const services = {
     store: { dir, load: async (name) => (name === "articles" ? (article ? [article] : []) : []), save: async () => {} },
     getSettings: async () => settings,
+    getSecrets: async () => secrets,
     wxClient: async () => client,
     renderHtml: async (md, theme, opts = {}) => { calls.renderOpts = opts; return "<div>" + (opts.imgMap?.["pic1.png"] || "") + "</div>"; },
   };
@@ -88,6 +89,28 @@ function mk({ article, settings = {}, clientOver = {} }) {
 {
   const h = mk({ article: null });
   await h.p.runScheduled({ id: "t7", articleId: "gone", mode: "publish" }).then(() => ok(false, "文章删除应报错"), (e) => ok(/已删除/.test(e.message), "文章被删→报错进任务failed", e.message));
+}
+// 8) 未配微信凭证 → 到点转「提醒模式」：awaiting_confirm+manual，不碰API、不报错
+{
+  const art = { id: "a8", title: "无凭证定时", md: "![图](pic1.png)", theme: "青竹绿" };
+  const h = mk({ article: art, secrets: {} });
+  await h.p.runScheduled({ id: "t8", articleId: "a8", mode: "publish" });
+  ok(h.updates.some((u) => u.status === "awaiting_confirm" && u.manual === true), "无凭证到点→提醒模式(awaiting_confirm+manual)");
+  ok(h.calls.drafts.length === 0 && h.calls.publishes.length === 0, "无凭证：不发起任何微信API调用");
+  ok(h.notes.some(([t, b]) => t.includes("未接微信API") && b.includes("复制")), "提醒通知指路「复制富文本」");
+}
+// 9) 调度器不得覆盖执行体的转态（awaiting_confirm 被冲成 done 曾是真实缺陷）
+{
+  const { Scheduler } = await import("../src/core/scheduler.mjs");
+  let tasks = [{ id: "s1", status: "pending", publishAt: Date.now() - 1000 }];
+  const store = { load: async () => tasks.map((t) => ({ ...t })), save: async (name, data) => { tasks = data; } };
+  const sch = new Scheduler(store, async (t) => { await sch.update(t.id, { status: "awaiting_confirm", manual: true }); }, () => {});
+  await sch.tick();
+  ok(tasks[0].status === "awaiting_confirm" && tasks[0].manual === true, "tick：执行体转awaiting_confirm后不被覆盖成done", tasks[0].status);
+  const sch2 = new Scheduler(store, async (t) => { await sch2.update(t.id, { status: "awaiting_confirm" }); }, () => {});
+  tasks = [{ id: "s2", status: "failed", publishAt: Date.now() - 1000 }];
+  await sch2.runOne("s2");
+  ok(tasks[0].status === "awaiting_confirm", "runOne：同样尊重执行体转态", tasks[0].status);
 }
 
 console.log(`\n结果: ${pass}/${pass + fail} 通过`);

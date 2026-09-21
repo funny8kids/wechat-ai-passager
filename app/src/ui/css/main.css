@@ -276,6 +276,10 @@ label.ckl input{accent-color:var(--accent)}
 .chanbanner.warn{border-color:#f59e0b55;background:#fffbeb;color:#92400e}
 .chanbanner.ok{border-color:#10b98155;background:#f0fdf4;color:#065f46}
 .chanbanner .grow{flex:1}
+.chanbanner{flex-wrap:wrap}
+.pubcheck{flex-basis:100%;margin:6px 0 8px;padding-left:20px;font-size:12.5px;line-height:1.9}
+.pubcheck li::marker{font-weight:700}
+.chanbanner .pubrow{flex-basis:100%}
 
 /* ---- 发布流程四步 ---- */
 .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}

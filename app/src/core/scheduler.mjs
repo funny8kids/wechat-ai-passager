@@ -79,6 +79,9 @@ export class Scheduler {
     await this.update(id, { status: "running", startedAt: Date.now() });
     try {
       await this.executor(t);
+      // 执行体可能自行转态（到点转人工放行/无凭证转提醒模式）：尊重它，不覆盖成 done
+      const after = (await this.all()).find((x) => x.id === id);
+      if (after && after.status !== "running") return;
       await this.update(id, { status: "done", finishedAt: Date.now() });
       this.notify({ type: "publish-success", task: t });
     } catch (e) {
@@ -109,6 +112,8 @@ export class Scheduler {
       await this.update(t.id, { status: "running", startedAt: now });
       try {
         await this.executor(t);
+        const after = (await this.all()).find((x) => x.id === t.id);
+        if (after && after.status !== "running") continue; // 执行体已自行转态，不覆盖成 done
         await this.update(t.id, { status: "done", finishedAt: now });
         this.notify({ type: "publish-success", task: t });
       } catch (e) {

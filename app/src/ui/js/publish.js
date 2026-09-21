@@ -13,9 +13,11 @@ async function updatePubBanner() {
   try { s = await window.api.getSecrets(); } catch {}
   const chip = $("#apiChip")?.textContent || "未自检";
   b.className = "chanbanner show";
-  if (!s.appSecretSet) {
+  if (!s.appSecretSet || !s.appId) {
     b.classList.add("warn");
-    b.innerHTML = `<span class="grow"><b>未接入微信 API：正式发布方式为「复制富文本」</b><br>写作页点「复制富文本」→ 公众号后台编辑器 Ctrl+V，排版样式与正文图片全保留（个别图未显示时到配图页「复制此图」逐张补）。要一键送草稿箱/定时发布？到设置填 AppID/AppSecret 并自检。</span><button class="btn sm" id="bnGoSet">去设置</button><button class="btn sm primary" id="bnGoCopy">去写作页复制</button>`;
+    b.innerHTML = `<span class="grow"><b>未接入微信 API：正式发布方式为「复制富文本」</b>，全程不需要任何 API 权限</span>
+      <ol class="pubcheck"><li>写作页确认成稿，点「复制富文本」（排版与正文图片一起带走）</li><li>打开 mp.weixin.qq.com 新建图文，编辑器里 Ctrl+V</li><li>个别图万一没显示：配图页「复制此图」逐张补</li><li>后台预览→发布；定时发布可用本页排队，到点会通知你来复制</li></ol>
+      <span class="pubrow"><button class="btn sm" id="bnGoSet">接入 API（可选）</button><button class="btn sm primary" id="bnGoCopy">第 1 步：去复制</button></span>`;
   } else if (chip === "API 异常") {
     b.classList.add("warn");
     b.innerHTML = `<span class="grow"><b>微信 API 自检未通过</b>（见状态栏「API 异常」）：常见为 IP 未加白名单（40164）或账号无草稿权限（48001，未认证个人订阅号）。修好前请用正式方案「复制富文本」发布。</span><button class="btn sm" id="bnGoSet">去重新自检</button><button class="btn sm primary" id="bnGoCopy">去写作页复制</button>`;
@@ -34,26 +36,34 @@ async function refreshQueue() {
   $("#pubTitle").textContent = cur ? cur.title || "（无题）" : "（未选择文章）";
   const list = await window.api.queueList();
   const box = $("#queueList");
-  if (!list.length) { box.innerHTML = `<div class="empty"><b>队列为空</b><br>在写作页写好文章后，到上方选时间点了「定时发布」<br>到点会先推草稿箱并弹系统通知，最终由你放行</div>`; return; }
+  if (!list.length) { box.innerHTML = `<div class="empty"><b>队列为空</b><br>在写作页写好文章后，到上方选时间点了「定时发布」<br>到点会先推草稿箱并弹系统通知，最终由你放行<br><span class="muted">未接微信API也能用：到点转「提醒模式」，通知你来一键「复制富文本」</span></div>`; return; }
   box.innerHTML = "";
   for (const q of list) {
     const div = document.createElement("div");
     div.className = "qcard";
-    const stMap = { pending: "排队中", running: "执行中", done: "完成", failed: "失败", awaiting_confirm: "到点·等你放行" };
+    const stMap = { pending: "排队中", running: "执行中", done: "完成", failed: "失败", awaiting_confirm: q.manual ? "到点·等你复制发布" : "到点·等你放行" };
     div.innerHTML = `<div class="qt">${esc(q.title || "文章")}<span class="stchip ${q.status}">${stMap[q.status] || q.status}</span>
         ${q.publishId ? `<span class="stchip ${q.pubFinal ? (/^✓/.test(q.pubStatus || "") ? "done" : "failed") : "running"}">${esc(q.pubStatus || "发布状态查询中…")}</span>` : ""}
         <span class="spacer"></span><span class="muted small">${fmtTime(q.publishAt)}</span></div>
       <div class="qm">模式:${q.mode === "draft" ? "仅草稿" : "草稿+发布"} · 创建 ${fmtTime(q.createdAt)}${q.draftMediaId ? " · 草稿ID " + q.draftMediaId.slice(0, 12) + "…" : ""}${q.pubCheckedAt ? " · 状态查询 " + fmtTime(q.pubCheckedAt) : ""}</div>
       ${q.pubError ? `<div class="qm" style="color:var(--warn)">发布状态查询受阻：${esc(q.pubError)}（不影响已提交内容，可在公众号后台查看）</div>` : ""}
-      ${q.status === "failed" ? `<div class="qerr"><b>${esc(q.error || "未知错误")}</b><br>${q.wxcode === 40164 ? "→ 把状态栏的公网IP加入公众号后台白名单后点重试" : ""}</div>` : ""}
+      ${q.status === "failed" ? `<div class="qerr"><b>${esc(q.error || "未知错误")}</b><br>${q.wxcode === 40164 ? "→ 把状态栏的公网IP加入公众号后台白名单后点重试" : q.wxcode === 48001 ? "→ 账号可能无草稿/发布权限（未认证个人订阅号常见），可直接改用「复制富文本」发布" : ""}</div>` : ""}
       <div class="pubrow">
-        ${q.status === "awaiting_confirm" ? `<button class="btn sm primary cf">确认发布</button>` : ""}
-        ${["pending", "failed", "awaiting_confirm"].includes(q.status) ? `<button class="btn sm rn">立即执行</button>` : ""}
+        ${q.status === "awaiting_confirm" && q.manual ? `<button class="btn sm primary cp">去写作页复制</button><span class="muted small">未接微信API：到点已按「提醒模式」处理，复制粘贴即完成发布</span>` : ""}
+        ${q.status === "awaiting_confirm" && !q.manual ? `<button class="btn sm primary cf">确认发布</button>` : ""}
+        ${["pending", "failed"].includes(q.status) || (q.status === "awaiting_confirm" && !q.manual) ? `<button class="btn sm rn">立即执行</button>` : ""}
+        ${q.status === "failed" ? `<button class="btn sm cp">改用「复制富文本」</button>` : ""}
         <button class="btn sm danger rm">取消任务</button>
       </div>`;
     div.querySelector(".rm").onclick = async () => { try { await window.api.queueRemove(q.id); toast("任务已取消"); } catch (e) { toast("取消失败：" + e.message); } refreshQueue(); };
+    div.querySelectorAll(".cp").forEach((el) => (el.onclick = gotoWriteCopy));
     const cf = div.querySelector(".cf"); if (cf) cf.onclick = async () => { try { await window.api.queueConfirm(q.id); } catch (e) { toast("放行失败：" + e.message); } refreshQueue(); };
-    const rn = div.querySelector(".rn"); if (rn) rn.onclick = async () => { toast("执行中…"); try { await window.api.queueRunNow(q.id); toast("✓ 执行完成"); } catch (e) { toast("失败：" + e.message); } refreshQueue(); };
+    const rn = div.querySelector(".rn"); if (rn) rn.onclick = async () => {
+      toast("执行中…");
+      try { await window.api.queueRunNow(q.id); toast("✓ 执行完成"); }
+      catch (e) { toast("失败：" + e.message); }
+      refreshQueue();
+    };
     box.appendChild(div);
   }
 }
@@ -76,8 +86,20 @@ async function guard(fn) {
     $("#prFallback").onclick = gotoWriteCopy;
   }
 }
-$("#btnToDraft").onclick = () => { if (!cur) return toast("未选择文章"); saveCur(true).then(() => guard(async () => { const r = await window.api.wxSaveDraft(cur); return "已存入草稿箱（media_id " + r.draftMediaId.slice(0, 10) + "…）"; })); };
-$("#btnPubNow").onclick = () => { if (!cur) return toast("未选择文章"); saveCur(true).then(() => guard(async () => { const r = await window.api.wxPublish(cur); return "已提交发布（publish_id " + String(r.publishId).slice(0, 10) + "…），微信审核结果每分钟自动回写到下方队列"; })); };
+// 未配凭证时不发起注定失败的请求：直接显形并给正式方案入口
+async function apiGate(run) {
+  let s = { appSecretSet: false };
+  try { s = await window.api.getSecrets(); } catch {}
+  if (!s.appSecretSet || !s.appId) {
+    $("#pubResult").innerHTML = `<span style="color:var(--warn)">未填微信凭证，API 发布不可用。正式方案：「复制富文本」→ 公众号后台粘贴，效果相同且不需要任何权限。</span> <button class="btn sm primary" id="prGateCopy">去写作页复制</button> <button class="btn sm ghost" id="prGateSet">去接入 API</button>`;
+    $("#prGateCopy").onclick = gotoWriteCopy;
+    $("#prGateSet").onclick = () => $('.tab[data-tab="settings"]').click();
+    return;
+  }
+  await run();
+}
+$("#btnToDraft").onclick = () => { if (!cur) return toast("未选择文章"); apiGate(() => saveCur(true).then(() => guard(async () => { const r = await window.api.wxSaveDraft(cur); return "已存入草稿箱（media_id " + r.draftMediaId.slice(0, 10) + "…）"; }))); };
+$("#btnPubNow").onclick = () => { if (!cur) return toast("未选择文章"); apiGate(() => saveCur(true).then(() => guard(async () => { const r = await window.api.wxPublish(cur); return "已提交发布（publish_id " + String(r.publishId).slice(0, 10) + "…），微信审核结果每分钟自动回写到下方队列"; }))); };
 $("#btnSched").onclick = async () => {
   if (!cur) return toast("未选择文章");
   const v = $("#schedAt").value;
@@ -87,6 +109,9 @@ $("#btnSched").onclick = async () => {
   await saveCur(true);
   const mode = $("#schedMode").value === "draft" ? "draft" : "publish";
   await window.api.queueAdd({ articleId: cur.id, title: cur.title, publishAt: ts, mode, autoRetry: settings.autoRetry });
-  toast(mode === "draft" ? "已入队：到点自动存入微信草稿箱并通知你（不会发布）" : "已入队：到点先推草稿并通知你，最终发布由你放行");
+  const sec = await window.api.getSecrets().catch(() => ({ appSecretSet: false }));
+  toast(!sec.appSecretSet || !sec.appId
+    ? "已入队：未接微信API，到点走「提醒模式」——系统通知你 + 发布页一键复制，不白跑不报错"
+    : mode === "draft" ? "已入队：到点自动存入微信草稿箱并通知你（不会发布）" : "已入队：到点先推草稿并通知你，最终发布由你放行");
   $$('.tab[data-tab="publish"]').click();
 };

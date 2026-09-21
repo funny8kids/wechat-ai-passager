@@ -6,7 +6,7 @@ const fs = require("fs/promises");
 const IMG_RE = /!\[[^\]]*\]\(([^)\s]+)/g;
 
 function createPipeline({ lib, services, getScheduler, notify }) {
-  const { store, getSettings, wxClient, renderHtml } = services;
+  const { store, getSettings, getSecrets, wxClient, renderHtml } = services;
 
   async function buildDraftPayload(article) {
     const s = await getSettings();
@@ -55,6 +55,13 @@ function createPipeline({ lib, services, getScheduler, notify }) {
     const articles = await store.load("articles", []);
     const article = articles.find((a) => a.id === task.articleId);
     if (!article) throw new Error("队列关联的文章已删除");
+    // 未配微信凭证：定时功能照常可用——到点转「提醒模式」，引导走正式方案「复制富文本」
+    const sec = await getSecrets();
+    if (!sec.appId || !sec.appSecret) {
+      await getScheduler().update(task.id, { status: "awaiting_confirm", manual: true });
+      notify(`定时到点（未接微信API）：${article.title}`, "打开稿匠发布页 →「去写作页复制」→ 公众号后台 Ctrl+V 发布");
+      return;
+    }
     const s = await getSettings();
     if (task.mode === "draft") {
       const r = await saveDraft(article);

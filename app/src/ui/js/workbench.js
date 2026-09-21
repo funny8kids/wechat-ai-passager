@@ -130,6 +130,12 @@ document.addEventListener("keydown", (e) => {
   } else if (h === "demo-copyrich") {
     // 界面 QA：真实点击「复制富文本」→ 外部脚本回读 Windows 剪贴板 HTML 验证降级产物
     setTimeout(() => { $('.tab[data-tab="write"]').click(); $("#btnCopyRich").click(); }, 3500);
+  } else if (h === "demo-apigate") {
+    // 界面 QA：未配凭证时真实点「存草稿」→ apiGate 应短路显形指路（不发注定失败的请求）
+    setTimeout(() => {
+      $('.tab[data-tab="publish"]').click();
+      setTimeout(() => $("#btnToDraft")?.click(), 2500);
+    }, 600);
   } else if (h === "demo-copyimg") {
     // 界面 QA：配图页真实点「复制此图」→ 外部脚本回读剪贴板位图，验证逐张补图兜底通道
     setTimeout(() => {
