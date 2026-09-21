@@ -103,6 +103,7 @@ if (!gotLock) {
         getWindow: () => win,
       });
       scheduler.start(20_000);
+      pipeline.startStatusPoller();
       createWindow(path.join(__dirname, "..", "preload", "index.cjs"));
       createTray();
       if (services.store.corrupted.length) {

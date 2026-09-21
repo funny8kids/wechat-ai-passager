@@ -300,6 +300,7 @@ label.ckl input{accent-color:var(--accent)}
 .slot .meta .intent{font-weight:600;margin-bottom:6px;font-size:13px;line-height:1.5}
 .slot .meta .intent::before{content:"配图意图";display:inline-block;font-size:10px;font-weight:500;color:var(--ai);background:var(--ai-weak);border:1px solid var(--ai-line);border-radius:4px;padding:0 5px;margin-right:7px;vertical-align:1px}
 .slot .meta .prompt{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--muted);min-height:44px;white-space:pre-wrap;margin-bottom:9px;line-height:1.6;font-size:12px}
+.slot .meta .prompt:not(.ph){color:var(--text)}
 .slot .meta .prompt:focus{outline:none;border-color:var(--ai)}
 .slot .ops{display:flex;gap:8px;flex-wrap:wrap}
 .slot .idx{position:relative}

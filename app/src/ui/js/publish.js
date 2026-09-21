@@ -12,8 +12,10 @@ async function refreshQueue() {
     div.className = "qcard";
     const stMap = { pending: "排队中", running: "执行中", done: "完成", failed: "失败", awaiting_confirm: "到点·等你放行" };
     div.innerHTML = `<div class="qt">${esc(q.title || "文章")}<span class="stchip ${q.status}">${stMap[q.status] || q.status}</span>
+        ${q.publishId ? `<span class="stchip ${q.pubFinal ? (/^✓/.test(q.pubStatus || "") ? "done" : "failed") : "running"}">${esc(q.pubStatus || "发布状态查询中…")}</span>` : ""}
         <span class="spacer"></span><span class="muted small">${fmtTime(q.publishAt)}</span></div>
-      <div class="qm">模式:${q.mode === "draft" ? "仅草稿" : "草稿+发布"} · 创建 ${fmtTime(q.createdAt)}${q.draftMediaId ? " · 草稿ID " + q.draftMediaId.slice(0, 12) + "…" : ""}</div>
+      <div class="qm">模式:${q.mode === "draft" ? "仅草稿" : "草稿+发布"} · 创建 ${fmtTime(q.createdAt)}${q.draftMediaId ? " · 草稿ID " + q.draftMediaId.slice(0, 12) + "…" : ""}${q.pubCheckedAt ? " · 状态查询 " + fmtTime(q.pubCheckedAt) : ""}</div>
+      ${q.pubError ? `<div class="qm" style="color:var(--warn)">发布状态查询受阻：${esc(q.pubError)}（不影响已提交内容，可在公众号后台查看）</div>` : ""}
       ${q.status === "failed" ? `<div class="qerr"><b>${esc(q.error || "未知错误")}</b><br>${q.wxcode === 40164 ? "→ 把状态栏的公网IP加入公众号后台白名单后点重试" : ""}</div>` : ""}
       <div class="pubrow">
         ${q.status === "awaiting_confirm" ? `<button class="btn sm primary cf">确认发布</button>` : ""}
@@ -41,7 +43,7 @@ async function guard(fn) {
   catch (e) { $("#pubResult").innerHTML = `<span style="color:var(--err)">✗ ${esc(e.message)}</span>`; toast("失败：" + e.message); }
 }
 $("#btnToDraft").onclick = () => { if (!cur) return toast("未选择文章"); saveCur(true).then(() => guard(async () => { const r = await window.api.wxSaveDraft(cur); return "已存入草稿箱（media_id " + r.draftMediaId.slice(0, 10) + "…）"; })); };
-$("#btnPubNow").onclick = () => { if (!cur) return toast("未选择文章"); saveCur(true).then(() => guard(async () => { const r = await window.api.wxPublish(cur); return "已提交发布（publish_id " + String(r.publishId).slice(0, 10) + "…），微信审核数分钟后生效"; })); };
+$("#btnPubNow").onclick = () => { if (!cur) return toast("未选择文章"); saveCur(true).then(() => guard(async () => { const r = await window.api.wxPublish(cur); return "已提交发布（publish_id " + String(r.publishId).slice(0, 10) + "…），微信审核结果每分钟自动回写到下方队列"; })); };
 $("#btnSched").onclick = async () => {
   if (!cur) return toast("未选择文章");
   const v = $("#schedAt").value;

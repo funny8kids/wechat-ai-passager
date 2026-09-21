@@ -9,6 +9,7 @@
     "check": "node scripts/check-wechat.mjs",
     "verify": "node scripts/verify-article.mjs",
     "lint": "node scripts/lint.mjs",
+    "test": "node scripts/test-stability.mjs && node scripts/test-poller.mjs",
     "dist": "electron-builder --win portable"
   },
   "license": "MIT",

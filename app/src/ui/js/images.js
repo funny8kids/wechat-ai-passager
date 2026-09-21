@@ -31,19 +31,38 @@ async function renderSlots() {
   for (const it of items) box.appendChild(it.type === "slot" ? slotCard(it, ++slotNo, md) : imgCard(it));
 }
 
+const PROMPT_PH = "（点「AI 生成提示词」按上下文写画面描述；生成后可手动改）";
+
+function rememberPrompt(slotFull, text) {
+  if (!cur) return;
+  cur.slotPrompts = cur.slotPrompts || {};
+  if (text && text !== PROMPT_PH) cur.slotPrompts[slotFull] = text;
+  else delete cur.slotPrompts[slotFull];
+}
+
 function slotCard(it, no, md) {
   const div = document.createElement("div");
   div.className = "slot";
+  const saved = (cur.slotPrompts || {})[it.full] || "";
   div.innerHTML = `<div class="thumb idx"><span class="badge">槽位 ${no} · 待落图</span>配图意图<br>等待图片</div>
     <div class="meta">
       <div class="intent">${esc(it.intent)}</div>
-      <div class="prompt" contenteditable="true" spellcheck="false">（点「AI 生成提示词」按上下文写画面描述；生成后可手动改）</div>
+      <div class="prompt" contenteditable="true" spellcheck="false">${esc(saved || PROMPT_PH)}</div>
       <div class="ops">
         <button class="btn sm ai genp">AI 生成提示词</button>
         <button class="btn sm picki">选本地图片</button>
         <button class="btn sm danger delslot">删掉槽位</button>
       </div>
     </div>`;
+  const promptEl = div.querySelector(".prompt");
+  if (!saved) promptEl.classList.add("ph");
+  promptEl.addEventListener("focus", () => { if (promptEl.classList.contains("ph")) { promptEl.textContent = ""; promptEl.classList.remove("ph"); } });
+  promptEl.addEventListener("blur", () => {
+    if (promptEl.classList.contains("ph")) { promptEl.textContent = PROMPT_PH; return; }
+    const t = promptEl.textContent.trim();
+    if (!t) { promptEl.textContent = PROMPT_PH; promptEl.classList.add("ph"); rememberPrompt(it.full, ""); }
+    else rememberPrompt(it.full, t);
+  });
   div.querySelector(".genp").onclick = async (e) => {
     e.target.disabled = true; e.target.textContent = "生成中…";
     try {
@@ -51,8 +70,10 @@ function slotCard(it, no, md) {
         "你是公众号美术指导。根据文章上下文与配图意图，输出 JSON：{\"prompt\": \"一段适合文生图的中文画面提示词：主体+场景+光线+构图+风格，情绪克制不摆拍，避免文字水印\"}",
         `文章节选：\n${md.slice(0, 2500)}\n\n配图意图：${it.intent}`
       );
-      div.querySelector(".prompt").textContent = json?.prompt || "AI 返回异常：" + (JSON.stringify(json) || "").slice(0, 80);
-    } catch (err) { div.querySelector(".prompt").textContent = "失败：" + err.message; }
+      const t = json?.prompt;
+      if (t) { promptEl.textContent = t; promptEl.classList.remove("ph"); rememberPrompt(it.full, t); markDirty(); }
+      else { promptEl.textContent = "AI 返回异常：" + (JSON.stringify(json) || "").slice(0, 80); promptEl.classList.add("ph"); }
+    } catch (err) { promptEl.textContent = "失败：" + err.message; promptEl.classList.add("ph"); }
     e.target.disabled = false; e.target.textContent = "AI 生成提示词";
   };
   div.querySelector(".picki").onclick = async () => {

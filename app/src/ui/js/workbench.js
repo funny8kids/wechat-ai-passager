@@ -124,7 +124,12 @@ document.addEventListener("keydown", (e) => {
       if (!$("#fTitle").value.trim()) $("#fTitle").value = "下班后的两小时，决定了你三年后的收入";
       wizOpen();
       const n = +((h.match(/^demo-wiz-run-(\d)$/) || [])[1] || 0);
-      if (n) { wizData[0] = "选题：" + $("#fTitle").value.trim(); wizStep = n - 1; wizRender(); $("#wizRun").click(); }
+      if (n) {
+        wizData[0] = "选题：" + $("#fTitle").value.trim();
+        // 回炉/审核需要初稿打底：用当前打开文章的真实正文做前置产物
+        if (n >= 5 && ($("#editor").value || "").length > 200) wizData[3] = $("#editor").value;
+        wizStep = n - 1; wizRender(); $("#wizRun").click();
+      }
     }, 900);
   }
 }

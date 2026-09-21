@@ -72,7 +72,38 @@ function createPipeline({ lib, services, getScheduler, notify }) {
     await getScheduler().update(task.id, { draftMediaId: r.draftMediaId, publishId: r.publishId });
   }
 
-  return { buildDraftPayload, saveDraft, publishArticle, runScheduled };
+  // ---- 发布终态轮询：submit 只代表"已提交"，微信审核结果要查 /freepublish/get ----
+  const PUB_STATUS = {
+    0: ["✓ 发布成功", true], 1: ["微信审核中…", false], 2: ["✗ 原创声明失败", true],
+    3: ["✗ 发布失败（常规）", true], 4: ["✗ 平台审核不通过", true],
+    5: ["发布后已被删除", true], 6: ["发布后已被屏蔽", true],
+  };
+  function startStatusPoller(intervalMs = 60_000) {
+    const tick = async () => {
+      const tasks = await store.load("queue", []);
+      const pend = tasks.filter((t) => t.publishId && !t.pubFinal);
+      if (!pend.length) return;
+      let client;
+      try { client = await wxClient(); } catch (e) {
+        for (const t of pend) await getScheduler().update(t.id, { pubError: e.message });
+        return;
+      }
+      for (const t of pend) {
+        try {
+          const j = await client.publishStatus(t.publishId);
+          const [text, isFinal] = PUB_STATUS[j.publish_status] || [`未知发布状态 ${j.publish_status}`, false];
+          await getScheduler().update(t.id, { pubStatus: text, pubFinal: isFinal, pubCheckedAt: Date.now(), pubError: null });
+          if (isFinal) notify("发布终态：" + (t.title || ""), text);
+        } catch (e) {
+          await getScheduler().update(t.id, { pubError: String(e.message || e), pubCheckedAt: Date.now() });
+        }
+      }
+    };
+    setInterval(() => tick().catch(() => {}), intervalMs);
+    tick().catch(() => {});
+  }
+
+  return { buildDraftPayload, saveDraft, publishArticle, runScheduled, startStatusPoller };
 }
 
 module.exports = { createPipeline };

@@ -178,7 +178,15 @@ function registerIpc({ ipcMain, dialog, shell, lib, services, pipeline, getSched
     return steps;
   });
   ipcMain.handle("wx:saveDraft", (e, article) => pipeline.saveDraft(article));
-  ipcMain.handle("wx:publish", (e, article) => pipeline.publishArticle(article));
+  ipcMain.handle("wx:publish", async (e, article) => {
+    const r = await pipeline.publishArticle(article);
+    // 立即发布也入队留痕（status 直接 done），让终态轮询器统一回写"审核中→成功/失败"
+    const sch = getScheduled();
+    if (sch) {
+      await sch.add({ articleId: article.id, title: article.title, mode: "publish", publishAt: Date.now(), createdAt: Date.now(), status: "done", finishedAt: Date.now(), draftMediaId: r.draftMediaId, publishId: r.publishId });
+    }
+    return r;
+  });
   ipcMain.handle("ip:detect", async () => {
     for (const u of ["https://api.ipify.org?format=json", "https://api.ip.sb/geoip"]) {
       try {
