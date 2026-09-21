@@ -51,7 +51,8 @@ $("#btnSched").onclick = async () => {
   const ts = new Date(v).getTime();
   if (ts < Date.now() + 60_000) return toast("定时时间需至少晚于现在 1 分钟");
   await saveCur(true);
-  await window.api.queueAdd({ articleId: cur.id, title: cur.title, publishAt: ts, mode: "publish", autoRetry: settings.autoRetry });
-  toast("已入队：到点先推草稿并通知你，最终发布由你放行");
+  const mode = $("#schedMode").value === "draft" ? "draft" : "publish";
+  await window.api.queueAdd({ articleId: cur.id, title: cur.title, publishAt: ts, mode, autoRetry: settings.autoRetry });
+  toast(mode === "draft" ? "已入队：到点自动存入微信草稿箱并通知你（不会发布）" : "已入队：到点先推草稿并通知你，最终发布由你放行");
   $$('.tab[data-tab="publish"]').click();
 };

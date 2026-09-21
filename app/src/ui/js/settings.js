@@ -96,6 +96,22 @@ $("#btnSaveSettings").onclick = async () => {
   loadSettings();
 };
 $("#btnIp").onclick = detectIp;
+$("#btnOpenDataDir").onclick = async () => {
+  const r = await window.api.openDataDir(); // shell.openPath：成功返回空串，失败返回错误文本
+  if (r) toast("打开失败：" + r);
+};
+$("#btnClearAiKey").onclick = async () => {
+  if (!confirm("删除本机保存的 API Key？AI 功能将不可用，直到重新填入")) return;
+  await window.api.setSecrets({ aiKey: "" });
+  toast("API Key 已从本机删除");
+  loadSettings();
+};
+$("#btnClearAppSecret").onclick = async () => {
+  if (!confirm("删除本机保存的 AppSecret？发布/自检将不可用，直到重新填入")) return;
+  await window.api.setSecrets({ appSecret: "" });
+  toast("AppSecret 已从本机删除");
+  loadSettings();
+};
 $("#btnSelfTest").onclick = async () => {
   $("#testResult").innerHTML = li("none", "自检中：token → 草稿权限 → 公网IP…");
   try {

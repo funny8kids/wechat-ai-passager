@@ -18,7 +18,7 @@ npm start                                              # 开发运行
 npm run dist                                           # 打包免安装 exe → app/dist/
 ```
 
-首次使用 10 分钟配置（设置页内完成）：AI 服务（Base URL + Key + 模型）→ 公众号 AppID/AppSecret → 点「连通性自检」。详见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
+首次使用 10 分钟配置（设置页内完成）：AI 服务（Base URL + Key + 模型）→ 公众号 AppID/AppSecret → 点「连通性自检」。用户手册与故障排查表见 [docs/USER-GUIDE.md](docs/USER-GUIDE.md)（不看代码也能配好），开发相关见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
 
 ## 目录地图
 

@@ -107,6 +107,14 @@ document.addEventListener("keydown", (e) => {
   } else if (h === "demo-aitest") {
     // 界面 QA：真实点击「测试 AI 连通」
     setTimeout(() => { $('.tab[data-tab="settings"]').click(); $("#btnAiTest").scrollIntoView({ block: "center" }); $("#btnAiTest").click(); }, 900);
+  } else if (h.startsWith("demo-settings-end")) {
+    // 界面 QA：滚动到设置页指定锚点（#demo-settings-end:<css选择器>，默认数据与备份卡片）
+    setTimeout(() => {
+      $('.tab[data-tab="settings"]').click();
+      const sel = (h.split(":")[1] || "").trim();
+      const el = (sel && $(sel)) || $("#btnClearAppSecret") || $("#btnOpenDataDir");
+      el?.closest(".card")?.scrollIntoView({ block: "center" });
+    }, 800);
   } else if (h === "demo-theme") {
     // 界面 QA：打开设置页样式编辑器并填入示例调色板
     setTimeout(() => {

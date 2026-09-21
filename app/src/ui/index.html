@@ -198,7 +198,11 @@
         <button id="btnPubNow" class="btn primary lg"><svg class="ic"><use href="#i-send"/></svg>立即发布</button>
         <span class="tsep"></span>
         <label class="datelabel"><svg class="ic"><use href="#i-clock"/></svg><input type="datetime-local" id="schedAt" aria-label="定时发布时间"></label>
-        <button id="btnSched" class="btn ai lg">定时发布（先草稿后确认）</button>
+        <select id="schedMode" class="select" title="到点做什么">
+          <option value="publish">定时发布（先草稿后你确认）</option>
+          <option value="draft">定时仅存草稿（到点推草稿箱，不发）</option>
+        </select>
+        <button id="btnSched" class="btn ai lg">加入定时队列</button>
       </div>
       <div id="pubResult" class="small pubresult"></div>
     </div>
@@ -225,7 +229,10 @@
         </label>
         <label>模型<input id="sModel" placeholder="deepseek-chat"></label>
         <label class="span2">Base URL<input id="sBaseUrl" placeholder="https://api.deepseek.com/v1"></label>
-        <label class="span2">API Key<input id="sAiKey" type="password" placeholder="留空=不修改" autocomplete="off"></label>
+        <label class="span2">API Key
+          <div class="keyrow"><input id="sAiKey" type="password" placeholder="留空=不修改" autocomplete="off"><button id="btnClearAiKey" class="btn sm ghost" title="删除本机保存的 Key（留空≠删除）">清除</button></div>
+          <span class="small muted">去哪拿：DeepSeek → platform.deepseek.com → API Keys → 新建；密钥只加密存在本机，绝不上传</span>
+        </label>
         <label>全局温度（0 严谨 ~ 1 发散）
           <div class="rangewrap"><input type="range" id="sTempRange" min="0" max="1.5" step="0.05"><output id="sTempOut">0.7</output></div>
         </label>
@@ -248,8 +255,13 @@
     <div class="card">
       <div class="cardhead"><b><svg class="ic wx"><use href="#i-key"/></svg>微信公众号</b><span class="muted small">未认证个人订阅号可能无草稿/发布权限（48001），自检不通时用「复制富文本」发布</span></div>
       <div class="grid2">
-        <label>AppID<input id="sAppId" placeholder="wx…" autocomplete="off"></label>
-        <label>AppSecret<input id="sAppSecret" type="password" placeholder="留空=不修改" autocomplete="off"></label>
+        <label>AppID<input id="sAppId" placeholder="wx…" autocomplete="off">
+          <span class="small muted">去哪拿：mp.weixin.qq.com → 设置与开发 → 基本配置 → 公众号开发信息</span>
+        </label>
+        <label>AppSecret
+          <div class="keyrow"><input id="sAppSecret" type="password" placeholder="留空=不修改" autocomplete="off"><button id="btnClearAppSecret" class="btn sm ghost" title="删除本机保存的 Secret（留空≠删除）">清除</button></div>
+          <span class="small muted">同页点「生成」后立刻保存（只显示一次）；生成后需把状态栏的公网 IP 加入白名单</span>
+        </label>
       </div>
       <div class="pubrow" style="margin-top:12px">
         <button id="btnSaveSettings" class="btn primary"><svg class="ic"><use href="#i-check"/></svg>保存设置</button>
@@ -295,6 +307,11 @@
         <input id="matText" placeholder="例：2023年裸辞去大理住了三个月，每天睡到自然醒反而慌了">
         <button id="btnMatAdd" class="btn sm ai">添加</button>
       </div>
+    </div>
+    <div class="card">
+      <div class="cardhead"><b><svg class="ic"><use href="#i-bookmark"/></svg>数据与备份</b></div>
+      <p class="muted small">文章/设置/样式都是本机 JSON 文件；整个数据目录复制走就算备份。密钥经 Windows 加密只在本机可读，换电脑需重新填。遇到问题先翻 <b>docs/USER-GUIDE.md</b> 的故障排查表。</p>
+      <div class="pubrow"><button id="btnOpenDataDir" class="btn">打开数据目录</button></div>
     </div>
   </div>
 </main>

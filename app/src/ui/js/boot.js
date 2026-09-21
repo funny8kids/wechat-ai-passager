@@ -7,9 +7,22 @@
     await loadArticles();
     if (articles.length) openArticle(articles[0]); else newArticle();
     await restoreAutosave();
+    firstRunGuide();
   } catch (e) { showFatal("启动失败：" + (e?.message || e)); }
   setInterval(() => { if ($('.tab[data-tab="publish"]').classList.contains("on")) refreshQueue(); }, 30_000);
 })();
+
+// ---------- 首启引导：缺什么配置就指哪条路（AI Key 必配；微信凭证可选，不配走复制富文本） ----------
+async function firstRunGuide() {
+  let sec = {};
+  try { sec = await window.api.getSecrets(); } catch { return; }
+  const goSettings = () => $('.tab[data-tab="settings"]').click();
+  if (!sec.aiKeySet) {
+    toast("欢迎用稿匠。第一步：到「设置 → AI 服务」选服务商、填入 API Key（只加密存本机）", "去设置", goSettings);
+  } else if (!sec.appId || !sec.appSecretSet) {
+    toast("AI 已就绪，可以直接写作。想一键发草稿/定时发布？到「设置 → 微信公众号」填 AppID/AppSecret 并点自检；不配置也能用写作页「复制富文本」粘贴发布", "去设置", goSettings);
+  }
+}
 
 async function restoreAutosave() {
   let as = null;
