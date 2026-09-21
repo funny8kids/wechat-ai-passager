@@ -39,7 +39,7 @@ AI公众号/
 │  │  │   ai.mjs            OpenAI 兼容客户端 + 预置任务 prompt 库
 │  │  │   imagegen.mjs      文生图客户端（国产端点 + 免Key免费直连源）
 │  │  │   wechat.mjs        微信开放 API 客户端（token/传图/草稿/发布/错误码表）
-│  │  │   md2wechat.mjs     Markdown → 微信内联样式 HTML（多主题/角注/图槽）
+│  │  │   md2wechat.mjs     Markdown → 微信内联样式 HTML（多主题/表格/角注/脚注/图槽）
 │  │  │   store.mjs         原子写 JSON 存储
 │  │  │   backup.mjs        备份/迁移包（密钥双向硬拒，素材字节级往返）
 │  │  │   └─ scheduler.mjs  本地定时调度器
