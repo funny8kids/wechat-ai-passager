@@ -44,6 +44,10 @@ const ref = renderWeChatHtml("见 [文档][1] 与 [别名][] 和 <https://auto.l
 T("引用式链接变角注且定义行剥除", ref.includes("文档<sup") && ref.includes("别名<sup") && !ref.includes("]: https://"));
 T("自动链接可见URL+角注", ref.includes("https://auto.link<sup"));
 T("未定义引用保留字面不误吞", ref.includes("未定义 [未知][9]"));
+const fn = renderWeChatHtml("正文脚注[^1]与[^note]，链接[官网](https://ex.com)，未定义[^9]\n\n[^1]: 脚注一内容。\n[^note]: 脚注二内容。", "青竹绿");
+T("脚注标记变角注且内容进文末区不漏字面", fn.includes("正文脚注<sup") && fn.includes("[2] 脚注一内容。") && fn.includes("[3] 脚注二内容。") && !fn.includes("[^1]"));
+T("脚注与链接角注同一套连续编号", fn.includes("[1] 官网：https://ex.com"));
+T("未定义脚注保留字面", fn.includes("[^9]"));
 
 // --- 接线：主进程两条剪贴板通道 + 体积闸门 ---
 const ipc = await readFile(path.join(root, "src/main/ipc.cjs"), "utf8");

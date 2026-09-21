@@ -23,6 +23,9 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   let html = md.replace(/\r\n/g, "\n");
+  // GFM 脚注定义行 [^id]: 内容 必须先于引用式预扫剥除（否则会被下面的正则误吞成链接定义，内容静默丢失）
+  const fnDefs = {};
+  html = html.replace(/^[ \t]*\[\^([^\]]+)\]:[ \t]*(.*)$/gm, (_, id, txt) => { fnDefs[id] = txt.trim(); return ""; });
   // 引用式链接定义行 [id]: url 先收集并从正文剥掉（同类工具均支持，此前漏成字面）
   const refs = {};
   html = html.replace(/^[ \t]*\[([^\]]+)\]:[ \t]*(\S+)[ \t]*$/gm, (_, id, url) => { refs[id.toLowerCase()] = url; return ""; });
@@ -56,6 +59,13 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
     s = s.replace(/&lt;((?:https?:\/\/|www\.)[^\s<>]+)&gt;/g, (_, url) => {
       footnotes.push({ txt: url, href: /^https?:/i.test(url) ? url : "https://" + url });
       return `${esc(url)}<sup style="color:${t.accent};font-size:12px;">[${footnotes.length}]</sup>`;
+    });
+    // 脚注标记 [^id] → 与链接角注同一套编号；未定义的保留字面不误吞
+    s = s.replace(/\[\^([^\]]+)\]/g, (m0, id) => {
+      const note = fnDefs[id];
+      if (note === undefined) return m0;
+      footnotes.push({ note });
+      return `<sup style="color:${t.accent};font-size:12px;">[${footnotes.length}]</sup>`;
     });
     s = s.replace(/\*\*\*([^*]+)\*\*\*/g, `<strong style="color:${t.accent};font-weight:700;">$1</strong>`);
     s = s.replace(/\*\*([^*]+)\*\*/g, `<strong style="font-weight:700;">$1</strong>`);
@@ -152,7 +162,7 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
   let fnHtml = "";
   if (footnotes.length) {
     fnHtml = `<section style="margin-top:2em;padding-top:12px;border-top:1px solid ${t.border};font-size:13px;color:${t.quote};line-height:1.8;">` +
-      footnotes.map((f, i) => `<p style="margin:0;">[${i + 1}] ${esc(f.txt)}：${esc(f.href)}</p>`).join("") +
+      footnotes.map((f, i) => `<p style="margin:0;">[${i + 1}] ${f.note !== undefined ? esc(f.note) : `${esc(f.txt)}：${esc(f.href)}`}</p>`).join("") +
       `</section>`;
   }
   return `<section data-tool="稿匠" style="${bodyStyle}padding:4px 0;">${out.join("")}${fnHtml}</section>`;
