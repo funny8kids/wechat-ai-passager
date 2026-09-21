@@ -25,6 +25,14 @@ T("槽位渲染为可见虚线标签", noMap.includes("图槽：待落图"));
 const ext = renderWeChatHtml("![外链](https://cdn.example.com/a.png)", "青竹绿", {});
 T("外链图原样保留不误伤", ext.includes('<img src="https://cdn.example.com/a.png"'));
 
+// --- 渲染层：GFM 表格（对标 doocs/mdnice 基础能力，粘贴后台不能变竖线乱码） ---
+const tbl = renderWeChatHtml("前\n\n| 列A | 列B |\n|:---|---:|\n| 1 | **2** |\n| 4 | 5 |\n\n价格 1|2 元", "青竹绿");
+T("表格渲染为<table>而非字面竖线段落", tbl.includes("<table") && tbl.includes("<th") && !/<p[^>]*>[^<]*\| 列A/.test(tbl));
+T("表格样式全内联且无style块", tbl.includes("border-collapse:collapse") && !tbl.includes("<style"));
+T("列对齐按分隔行(:---左 / ---:右)", /<th style="[^"]*text-align:left[^"]*">列A/.test(tbl) && /<th style="[^"]*text-align:right[^"]*">列B/.test(tbl));
+T("单元格内加粗生效", /<td[^>]*><strong/.test(tbl));
+T("含竖线的普通文字不误判为表格", /<p[^>]*>价格 1\|2 元<\/p>/.test(tbl));
+
 // --- 接线：主进程两条剪贴板通道 + 体积闸门 ---
 const ipc = await readFile(path.join(root, "src/main/ipc.cjs"), "utf8");
 T("主进程有clipboard:writeRich", ipc.includes('"clipboard:writeRich"'));

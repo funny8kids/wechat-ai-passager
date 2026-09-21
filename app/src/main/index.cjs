@@ -31,6 +31,10 @@ function createWindow(preloadPath) {
     win.webContents.once("did-finish-load", () => setTimeout(async () => {
       try {
         win.show(); win.focus();
+        if (process.env.GJ_SHOT_SCROLL) { // 留证专用：截图前向渲染进程注入一段 JS（如滚动预览到目标元素）
+          await win.webContents.executeJavaScript(process.env.GJ_SHOT_SCROLL).catch(() => {});
+          await new Promise((r) => setTimeout(r, 400));
+        }
         await new Promise((r) => setTimeout(r, 600));
         for (let i = 0; i < 6; i++) { // capturePage 偶发返回空图，重试直到拿到有效 PNG
           const buf = (await win.capturePage()).toPNG();

@@ -26,7 +26,7 @@ npm start
 |---|---|
 | `npm start` | 开发运行（每次改 ui/core/main 代码后重启生效） |
 | `npm run lint` | 语法门禁（提交前必跑，见 ADR-009） |
-| `npm test` | 离线全量单测链（零网络零密钥）：test-stability / poller / schedule / richcopy / imagegen / noapi / backup / ux 共 8 套 192 项断言 |
+| `npm test` | 离线全量单测链（零网络零密钥）：test-stability / poller / schedule / richcopy / imagegen / noapi / backup / ux 共 8 套 197 项断言 |
 | `npm run verify` | 端到端文章质量验证（真实调用 AI，21 项断言，需环境变量 `GJ_AI_KEY`） |
 | `npm run check <AppID> <AppSecret>` | 微信 API 权限只读探测（不做任何写操作） |
 | `npm run qa:clipboard` | 真实剪贴板留证：起应用真点「复制富文本/复制此图」，断言产物带图（需桌面会话，自备并清理留证数据） |

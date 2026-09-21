@@ -70,7 +70,8 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
     }
   };
 
-  for (const line of lines) {
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     const hr = line.match(/^\s*(-{3,}|\*{3,})\s*$/);
     const h = line.match(/^(#{1,4})\s+(.*)$/);
     const quote = line.match(/^>\s?(.*)$/);
@@ -101,6 +102,25 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
       const want = ul ? "ul" : "ol";
       if (listType !== want) { closeList(); out.push(want === "ul" ? `<ul style="margin:0 0 1.1em;padding-left:1.4em;">` : `<ol style="margin:0 0 1.1em;padding-left:1.4em;">`); listType = want; }
       out.push(`<li style="${bodyStyle}margin-bottom:.4em;">${inline((ul || ol)[1])}</li>`);
+      continue;
+    }
+    // GFM 表格：表头行 + 分隔行（只含 | : - 空格且带 -）才成立，避免误伤含竖线的普通文字
+    const sep = lines[li + 1];
+    if (line.trim().startsWith("|") && sep && /-/.test(sep) && /^[\s|:-]+$/.test(sep)) {
+      flushPara(); closeList();
+      const cells = (row) => row.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+      const aligns = cells(sep).map((s) => (s.startsWith(":") && s.endsWith(":") ? "center" : s.endsWith(":") ? "right" : "left"));
+      const head = cells(line);
+      const n = head.length;
+      const rows = [];
+      let r = li + 2;
+      while (r < lines.length && lines[r].trim() && lines[r].includes("|")) { rows.push(cells(lines[r])); r++; }
+      const th = (i) => `<th style="border:1px solid ${t.border};background:${t.quoteBg};color:${t.heading};font-weight:700;padding:6px 10px;text-align:${aligns[i] || "left"};">${inline(head[i] || "")}</th>`;
+      const td = (s, i, even) => `<td style="border:1px solid ${t.border};padding:6px 10px;text-align:${aligns[i] || "left"};${even ? `background:${t.quoteBg};` : ""}${bodyStyle}">${inline(s || "")}</td>`;
+      out.push(`<section style="overflow-x:auto;margin:0 0 1.1em;"><table style="border-collapse:collapse;width:100%;font-size:14px;line-height:1.6;"><thead><tr>${Array.from({ length: n }, (_, i) => th(i)).join("")}</tr></thead><tbody>${
+        rows.map((row, ri) => `<tr>${Array.from({ length: n }, (_, i) => td(row[i], i, ri % 2 === 1)).join("")}</tr>`).join("")
+      }</tbody></table></section>`);
+      li = r - 1;
       continue;
     }
     if (!line.trim()) { flushPara(); closeList(); continue; }
