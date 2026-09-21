@@ -68,19 +68,12 @@ $$(".lay").forEach((b) => b.classList.toggle("on", b.dataset.layout === "split")
 })();
 
 // ---------- 复制富文本（降级发布路径：直接粘贴进公众号后台） ----------
-$("#btnCopyRich").addEventListener("click", () => {
+$("#btnCopyRich").addEventListener("click", async () => {
   const node = $("#preview .phoneish");
   if (!node || !node.textContent.trim()) return toast("先把「布局」切到含预览的档位，让右侧渲染出来再复制");
-  const r = document.createRange();
-  r.selectNodeContents(node);
-  const sel = getSelection();
-  sel.removeAllRanges(); sel.addRange(r);
-  let ok = false;
-  try { ok = document.execCommand("copy"); } catch {}
-  sel.removeAllRanges();
-  toast(ok
-    ? "已复制排版好的富文本 → 公众号后台编辑器 Ctrl+V。注意：正文图片需手动插入（复制不含本地图）"
-    : "复制失败：请切到「仅预览」后重试");
+  // 经主进程写 HTML Format：不依赖窗口焦点，粘贴到公众号后台保留内联样式
+  const err = await window.api.copyRich(node.innerHTML, node.innerText);
+  toast(err ? err : "已复制排版好的富文本 → 公众号后台编辑器 Ctrl+V。注意：本地图不会随复制进后台，需手动插入");
 });
 
 // ---------- 快捷键 ----------
@@ -134,6 +127,9 @@ document.addEventListener("keydown", (e) => {
     }, 800);
   } else if (h === "hot") {
     setTimeout(() => { $('.tab[data-tab="write"]').click(); $('.ptabs .pt[data-lp="hot"]').click(); }, 300);
+  } else if (h === "demo-copyrich") {
+    // 界面 QA：真实点击「复制富文本」→ 外部脚本回读 Windows 剪贴板 HTML 验证降级产物
+    setTimeout(() => { $('.tab[data-tab="write"]').click(); $("#btnCopyRich").click(); }, 3500);
   } else if (h.startsWith("demo-wiz")) {
     // 界面 QA：打开成稿向导；--gj-tab=demo-wiz-run-N 真实执行第 N 步（需 GJ_AI_KEY + 长 GJ_SHOT_WAIT）
     setTimeout(() => {

@@ -7,7 +7,7 @@ const HOT_BASE = "https://60s-api.viki.moe/v2"; // 开源聚合热榜（vikiboss
 const HOT_PLATFORMS = ["weibo", "zhihu", "toutiao", "douyin"];
 const HOT_TTL_MS = 5 * 60 * 1000;
 
-function registerIpc({ ipcMain, dialog, shell, lib, services, pipeline, getScheduled, getWindow }) {
+function registerIpc({ ipcMain, dialog, shell, clipboard, lib, services, pipeline, getScheduled, getWindow }) {
   const { store, getSettings, setSettings, getSecrets, setSecrets, aiClient, wxClient, listThemes, saveTheme, deleteTheme, renderHtml } = services;
 
   // ---------- 设置与密钥 ----------
@@ -163,6 +163,16 @@ function registerIpc({ ipcMain, dialog, shell, lib, services, pipeline, getSched
   // ---------- 崩溃保护：编辑中内容实时暂存，重启可恢复未保存修改 ----------
   ipcMain.handle("autosave:set", (e, data) => (data ? store.save("autosave", { ...data, ts: Date.now() }) : store.save("autosave", null)));
   ipcMain.handle("autosave:get", () => store.load("autosave", null));
+
+  // ---------- 复制富文本：主进程写剪贴板（HTML Format），不受渲染层焦点限制 ----------
+  ipcMain.handle("clipboard:writeRich", (e, { html, text } = {}) => {
+    if (typeof html !== "string" || !html.trim()) return "内容为空";
+    if (html.length > 8_000_000) return "内容过大（>8MB），先精简图片或正文";
+    try {
+      clipboard.writeHTML(html, typeof text === "string" ? text : "");
+      return null; // null = 成功
+    } catch (err) { return "写入剪贴板失败：" + err.message; }
+  });
 
   // ---------- 微信 ----------
   ipcMain.handle("wx:selftest", async (e, override) => {
