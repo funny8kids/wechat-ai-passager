@@ -99,9 +99,21 @@ T("免费通道走GET且无Authorization头", k1u[0].includes("/prompt/") && k1u
 const { cli: k2c } = await runKeyless([fakeRes({ buf: new TextEncoder().encode("<html>502 bad gateway</html>" + " ".repeat(30)).buffer })]);
 let ke3 = ""; try { await k2c.generate("x"); } catch (e) { ke3 = e.message; }
 T("免费源200返错误页时显形不静默", ke3.includes("没返回图片") && ke3.includes("502 bad gateway"), ke3);
-const { cli: k3c } = await runKeyless([fakeRes({ ok: false, status: 429, text: "slow down" })]);
-let ke4 = ""; try { await k3c.generate("x"); } catch (e) { ke4 = e.message; }
-T("免费源4xx转可操作中文", ke4.includes("额度用尽"), ke4);
+const NO_WAIT = { sleepImpl: async () => {} };
+const keylessSrc = await readFile(path.join(root, "src/core/imagegen.mjs"), "utf8");
+const { cli: k3c, calls: k3u } = await runKeyless([fakeRes({ ok: false, status: 429, text: "slow down" }), fakeRes({ buf: MAGIC.jpg.buffer.slice(MAGIC.jpg.byteOffset, MAGIC.jpg.byteOffset + MAGIC.jpg.length) })], NO_WAIT);
+const kg3 = await k3c.generate("一只橘猫");
+T("免费源429自动换seed重试一次后成功", kg3[0].ext === "jpg" && k3u.length === 2 && /seed=(\d+)/.exec(k3u[0])[1] !== /seed=(\d+)/.exec(k3u[1])[1]);
+const { cli: k4c, calls: k4u } = await runKeyless([
+  fakeRes({ ok: false, status: 500, text: '{"error":"Internal Server Error","message":"Gen Sana request failed with 429: Per-user limit of 300 RPM exceeded"}' }),
+  fakeRes({ ok: false, status: 500, text: "still busy" }),
+], NO_WAIT);
+let ke4 = ""; try { await k4c.generate("x"); } catch (e) { ke4 = e.message; }
+T("免费源高峰500(内嵌429)重试仍堵→人话显形+双出口", ke4.includes("免费档这会儿拥挤") && ke4.includes("自动重试一次") && ke4.includes("再点一次「AI 出图」") && ke4.includes("智谱 CogView") && k4u.length === 2, ke4.slice(0, 60));
+const { cli: k5c, calls: k5u } = await runKeyless([fakeRes({ ok: false, status: 404, text: "not found" })], NO_WAIT);
+let ke4b = ""; try { await k5c.generate("x"); } catch (e) { ke4b = e.message; }
+T("免费源非限流4xx不重试直接可操作中文", ke4b.includes("生图接口 404") && k5u.length === 1, ke4b.slice(0, 60));
+T("限流判定覆盖429/5xx与正文内嵌429", /status === 429 \|\| status === 500 \|\| status === 502 \|\| status === 503/.test(keylessSrc) && /per-user limit/i.test(keylessSrc));
 let ke5 = ""; try { new KeylessImageClient({ baseUrl: "" }); } catch (e) { ke5 = e.message; }
 T("免费客户端缺端点构造期就拦", ke5.includes("baseUrl"), ke5);
 T("免费预设标记keyless且无模型名", IMAGE_PRESETS["免费直连（免Key）"]?.keyless === true && IMAGE_PRESETS["免费直连（免Key）"].model === "");

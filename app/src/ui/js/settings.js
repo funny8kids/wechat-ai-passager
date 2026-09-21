@@ -80,7 +80,7 @@ $("#btnAiTest").addEventListener("click", async () => {
 // ---------- 生图服务：预设取自核心模块（国内可达端点），表单直测不必先保存 ----------
 let IMG_PRESETS = [];
 function imgPreset(name) { return IMG_PRESETS.find((p) => p.name === name) || {}; }
-function imgKeyHintText(p) { return p.keyless ? "免 Key 免费源：不用填 Key 直接测。注意免费档带水印、中文长提示词偏弱（简短英文更稳）" : "去哪拿 Key：" + (p.keyHint || ""); }
+function imgKeyHintText(p) { return p.keyless ? "免 Key 免费源：不用填 Key 直接测。注意免费档带水印、中文长提示词偏弱（简短英文更稳）、高峰拥堵会自动重试一次（仍堵会明说）" : "去哪拿 Key：" + (p.keyHint || ""); }
 function applyImgModelHint(p) { $("#sImgModel").placeholder = p.keyless ? "免费直连无需模型名" : "如 cogview-3-flash"; }
 function fillImgSizes(presets, cur) {
   const sizes = presets.sizes || ["1024x1024"];

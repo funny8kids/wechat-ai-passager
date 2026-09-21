@@ -24,7 +24,7 @@ export const IMAGE_PRESETS = {
     keyless: true,
     sizes: ["1024x1024", "1024x768", "768x1024", "1280x720"],
     models: [],
-    keyHint: "内置免费端点，无需任何 Key，装好即可出图。免费档两条如实限制：右下角带 pollinations 水印（发布前建议换图或裁掉）；对中文长提示词理解偏弱，用简短英文或短语更稳。正式配图建议切自带 Key 的源",
+    keyHint: "内置免费端点，无需任何 Key，装好即可出图。免费档三条如实限制：右下角带 pollinations 水印（发布前建议换图或裁掉）；对中文长提示词理解偏弱，用简短英文或短语更稳；高峰时段共享池会拥堵——工具会自动重试一次，仍堵会明说，等 1-2 分钟再试即可。正式配图建议切自带 Key 的源",
   },
   自定义: {
     baseUrl: "",
@@ -145,16 +145,35 @@ export function sniffImageExt(buf) {
   return null;
 }
 
+// 免费池共享限流（实测高峰 429→500，且 500 正文常内嵌上游 429 详情）
+function isKeylessBusy(status, body) {
+  if (status === 429 || status === 500 || status === 502 || status === 503) return true;
+  return /429|rate.?limit|per-user limit/i.test(String(body || ""));
+}
+
 export class KeylessImageClient {
-  constructor({ baseUrl, size, fetchImpl, timeoutMs = 120_000 }) {
+  constructor({ baseUrl, size, fetchImpl, timeoutMs = 120_000, retryDelayMs = 4000, sleepImpl } = {}) {
     if (!/^https?:\/\//i.test(String(baseUrl || ""))) throw new Error("未配置免费生图端点 baseUrl（选「免费直连（免Key）」预设）");
     this.baseUrl = baseUrl;
     this.size = size || "1024x1024";
     this.fetch = fetchImpl || fetch;
     this.timeoutMs = timeoutMs;
+    this.retryDelayMs = retryDelayMs;
+    this.sleep = sleepImpl || ((ms) => new Promise((r) => setTimeout(r, ms)));
   }
 
   async generate(prompt) {
+    let r = await this._attempt(prompt);
+    if (!r.busy) return r.out;
+    // 拥堵自动换 seed 重试一次（每次 buildKeylessUrl 随机 seed），仍堵则人话显形
+    await this.sleep(this.retryDelayMs);
+    r = await this._attempt(prompt);
+    if (!r.busy) return r.out;
+    throw new Error(`免费档这会儿拥挤（源站共享池限流），自动重试一次仍未挤进去：等 1-2 分钟再点一次「AI 出图」；急用可在设置 → 生图服务切「智谱 CogView」等自带 Key 的源${r.detail ? "  [" + r.detail + "]" : ""}`);
+  }
+
+  // 成功：{busy:false, out:[{buf,ext}]}；限流类失败：{busy:true, detail}（可换 seed 重试）
+  async _attempt(prompt) {
     const url = buildKeylessUrl({ baseUrl: this.baseUrl, prompt, size: this.size });
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), this.timeoutMs);
@@ -166,10 +185,14 @@ export class KeylessImageClient {
     } finally {
       clearTimeout(timer);
     }
-    if (!res.ok) throw new Error(imageApiError(res.status, await res.text().catch(() => "")));
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      if (isKeylessBusy(res.status, body)) return { busy: true, detail: `${res.status}: ` + String(body).slice(0, 80).replace(/[\r\n]+/g, " ") };
+      throw new Error(imageApiError(res.status, body));
+    }
     const buf = Buffer.from(await res.arrayBuffer());
     const ext = sniffImageExt(buf);
     if (!ext) throw new Error("免费生图源没返回图片（可能被限流或网络被劫持）：稍后重试，或切自带 Key 的源  [" + buf.subarray(0, 80).toString("utf8").replace(/[\r\n]+/g, " ") + "]");
-    return [{ buf, ext }];
+    return { busy: false, out: [{ buf, ext }] };
   }
 }
