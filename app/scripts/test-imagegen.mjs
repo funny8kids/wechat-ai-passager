@@ -120,6 +120,8 @@ T("主进程有presets/test/run三通道", ipc.includes('"imgen:presets"') && ip
 T("生成图落素材库带时间戳名", /imgen:run[\s\S]{0,700}ai-/.test(ipc) && /imgen:run[\s\S]{0,700}writeFile/.test(ipc));
 const preload = await readFile(path.join(root, "src/preload/index.cjs"), "utf8");
 T("预加载暴露imgen三方法", preload.includes("imgenPresets:") && preload.includes("imgenTest:") && preload.includes("imgenRun:"));
+const wb = await readFile(path.join(root, "src/ui/js/workbench.js"), "utf8");
+T("有demo-imgtest截图钩子真实点击测试出图", wb.includes('"demo-imgtest"') && /demo-imgtest[\s\S]{0,320}#btnImgTest\"\)\.click/.test(wb));
 const html = await readFile(path.join(root, "src/ui/index.html"), "utf8");
 T("设置页有生图服务卡片", html.includes('id="sImgPreset"') && html.includes('id="btnImgTest"') && html.includes("生图服务"));
 const images = await readFile(path.join(root, "src/ui/js/images.js"), "utf8");

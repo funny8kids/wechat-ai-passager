@@ -100,6 +100,9 @@ document.addEventListener("keydown", (e) => {
   } else if (h === "demo-aitest") {
     // 界面 QA：真实点击「测试 AI 连通」
     setTimeout(() => { $('.tab[data-tab="settings"]').click(); $("#btnAiTest").scrollIntoView({ block: "center" }); $("#btnAiTest").click(); }, 900);
+  } else if (h === "demo-imgtest") {
+    // 界面 QA：真实点击「测试出图」（默认免费直连源免 Key，配长 GJ_SHOT_WAIT 等真实出图显形）
+    setTimeout(() => { $('.tab[data-tab="settings"]').click(); $("#toast")?.classList.remove("show"); $("#btnImgTest").scrollIntoView({ block: "center" }); $("#btnImgTest").click(); }, 900);
   } else if (h.startsWith("demo-settings-end")) {
     // 界面 QA：滚动到设置页指定锚点（#demo-settings-end:<css选择器>，默认数据与备份卡片）
     setTimeout(() => {
