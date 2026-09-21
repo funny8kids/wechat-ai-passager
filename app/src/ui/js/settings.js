@@ -80,6 +80,7 @@ $("#btnAiTest").addEventListener("click", async () => {
 // ---------- 生图服务：预设取自核心模块（国内可达端点），表单直测不必先保存 ----------
 let IMG_PRESETS = [];
 function imgPreset(name) { return IMG_PRESETS.find((p) => p.name === name) || {}; }
+function imgKeyHintText(p) { return p.keyless ? "免 Key 免费源：不用填 Key 直接测。注意免费档带水印、中文长提示词偏弱（简短英文更稳）" : "去哪拿 Key：" + (p.keyHint || ""); }
 function fillImgSizes(presets, cur) {
   const sizes = presets.sizes || ["1024x1024"];
   $("#sImgSize").innerHTML = sizes.map((s) => `<option value="${s}"${s === cur ? " selected" : ""}>${s}</option>`).join("");
@@ -90,7 +91,7 @@ function applyImgPreset() {
   if (p.baseUrl) $("#sImgBaseUrl").value = p.baseUrl;
   if (p.model) $("#sImgModel").value = p.model;
   $("#imgModelList").innerHTML = (p.models || []).map((m) => `<option value="${esc(m)}">`).join("");
-  $("#imgKeyHint").textContent = "去哪拿 Key：" + (p.keyHint || "");
+  $("#imgKeyHint").textContent = imgKeyHintText(p);
   fillImgSizes(p, p.sizes?.[0]);
   toast(`已填入 ${$("#sImgPreset").value} 的端点与默认模型，点「保存设置」生效`);
 }
@@ -106,13 +107,13 @@ async function loadImgSettings() {
   $("#sImgModel").value = g.model || imgPreset($("#sImgPreset").value).model || "";
   const p = imgPreset($("#sImgPreset").value);
   $("#imgModelList").innerHTML = (p.models || []).map((m) => `<option value="${esc(m)}">`).join("");
-  $("#imgKeyHint").textContent = "去哪拿 Key：" + (p.keyHint || "");
+  $("#imgKeyHint").textContent = imgKeyHintText(p);
   fillImgSizes(p, g.size);
 }
 $("#sImgPreset").addEventListener("change", applyImgPreset);
 $("#btnImgTest").addEventListener("click", async () => {
   const b = $("#btnImgTest"); b.disabled = true;
-  $("#imgTestResult").textContent = "正在真实生成一张图（约 5~30 秒）…";
+  $("#imgTestResult").textContent = "正在真实生成一张图（约 5~60 秒）…";
   $("#imgTestResult").className = "small muted";
   try {
     const r = await window.api.imgenTest({
@@ -127,7 +128,7 @@ $("#btnImgTest").addEventListener("click", async () => {
   } finally { b.disabled = false; }
 });
 $("#btnClearImgKey").onclick = async () => {
-  if (!confirm("删除本机保存的生图 Key？配图页「AI 出图」将不可用，直到重新填入")) return;
+  if (!confirm("删除本机保存的生图 Key？免费直连源不受影响；自带 Key 的源需重填后才能用")) return;
   await window.api.setSecrets({ imgKey: "" });
   toast("生图 Key 已从本机删除");
   loadSettings();

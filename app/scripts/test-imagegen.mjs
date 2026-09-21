@@ -2,7 +2,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { IMAGE_PRESETS, buildImageBody, parseImageResponse, imageApiError, ImageGenClient } from "../src/core/imagegen.mjs";
+import { IMAGE_PRESETS, buildImageBody, parseImageResponse, imageApiError, ImageGenClient, buildKeylessUrl, sniffImageExt, KeylessImageClient } from "../src/core/imagegen.mjs";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = [];
@@ -74,11 +74,45 @@ T("预设含智谱与硅基流动", !!IMAGE_PRESETS["智谱 CogView"] && !!IMAGE
 T("智谱免费模型在首位", IMAGE_PRESETS["智谱 CogView"].models[0] === "cogview-3-flash");
 T("预设带拿Key指引", IMAGE_PRESETS["智谱 CogView"].keyHint.includes("open.bigmodel.cn") && IMAGE_PRESETS["硅基流动 FLUX"].keyHint.includes("siliconflow"));
 
+// --- 免 Key 免费直连：URL 构建 / 魔数嗅探 / 客户端全链路（假 fetch）---
+const ku = buildKeylessUrl({ baseUrl: "https://free.test/", prompt: "青竹 配图 & 特??", size: "1024x768", seed: 42 });
+T("免费URL含编码提示词+宽高+种子+去水印+flux池", ku.startsWith("https://free.test/prompt/") && ku.includes(encodeURIComponent("特??")) && ku.includes("width=1024") && ku.includes("height=768") && ku.includes("seed=42") && ku.includes("nologo=true") && ku.endsWith("model=flux"));
+let ke1 = ""; try { buildKeylessUrl({ baseUrl: "https://free.test", prompt: "  " }); } catch (e) { ke1 = e.message; }
+T("免费源空提示词构造期就拦", ke1 === "画面提示词为空", ke1);
+let ke2 = ""; try { buildKeylessUrl({ baseUrl: "https://free.test", prompt: "x", size: "大图" }); } catch (e) { ke2 = e.message; }
+T("免费源坏尺寸显形报格式", ke2.includes("1024x1024"), ke2);
+const MAGIC = { jpg: Buffer.from([0xff, 0xd8, 0xff, ...new Array(20).fill(1)]), png: Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(20)]), webp: Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WEBP"), Buffer.alloc(20)]), gif: Buffer.concat([Buffer.from("GIF89a"), Buffer.alloc(20)]) };
+T("魔数嗅探四种真图格式", sniffImageExt(MAGIC.jpg) === "jpg" && sniffImageExt(MAGIC.png) === "png" && sniffImageExt(MAGIC.webp) === "webp" && sniffImageExt(MAGIC.gif) === "gif");
+T("伪装成200的错误页嗅探为null", sniffImageExt(Buffer.from("<html>rate limited</html>".padEnd(30))) === null && sniffImageExt(null) === null);
+async function runKeyless(responses, override = {}) {
+  const calls = [];
+  const cli = new KeylessImageClient({
+    baseUrl: "https://free.test", size: "1024x1024",
+    fetchImpl: async (url, opts) => { calls.push(url); const r = responses.shift(); if (r instanceof Error) throw r; return r; },
+    ...override,
+  });
+  return { cli, calls };
+}
+const { cli: k1c, calls: k1u } = await runKeyless([fakeRes({ buf: MAGIC.jpg.buffer.slice(MAGIC.jpg.byteOffset, MAGIC.jpg.byteOffset + MAGIC.jpg.length) })]);
+const kg1 = await k1c.generate("一只橘猫");
+T("免费通道走GET且无Authorization头", k1u[0].includes("/prompt/") && k1u[0].includes("https://free.test") && !k1u[0].includes("images/generations") && kg1[0].ext === "jpg");
+const { cli: k2c } = await runKeyless([fakeRes({ buf: new TextEncoder().encode("<html>502 bad gateway</html>" + " ".repeat(30)).buffer })]);
+let ke3 = ""; try { await k2c.generate("x"); } catch (e) { ke3 = e.message; }
+T("免费源200返错误页时显形不静默", ke3.includes("没返回图片") && ke3.includes("502 bad gateway"), ke3);
+const { cli: k3c } = await runKeyless([fakeRes({ ok: false, status: 429, text: "slow down" })]);
+let ke4 = ""; try { await k3c.generate("x"); } catch (e) { ke4 = e.message; }
+T("免费源4xx转可操作中文", ke4.includes("额度用尽"), ke4);
+let ke5 = ""; try { new KeylessImageClient({ baseUrl: "" }); } catch (e) { ke5 = e.message; }
+T("免费客户端缺端点构造期就拦", ke5.includes("baseUrl"), ke5);
+T("免费预设标记keyless且无模型名", IMAGE_PRESETS["免费直连（免Key）"]?.keyless === true && IMAGE_PRESETS["免费直连（免Key）"].model === "");
+
 // --- 接线：核心装载 / 主进程 / 预加载 / 设置页 / 配图页 ---
 const loader = await readFile(path.join(root, "src/main/core-loader.cjs"), "utf8");
 T("core-loader导出ImageGenClient", loader.includes("ImageGenClient") && loader.includes("imagegen.mjs"));
+T("core-loader导出KeylessImageClient", loader.includes("KeylessImageClient"));
 const services = await readFile(path.join(root, "src/main/services.cjs"), "utf8");
-T("services默认imgGen指向免费档", /imgGen:\s*{[^}]*cogview-3-flash/.test(services));
+T("services默认imgGen指向免费直连", /imgGen:\s*{[^}]*免费直连/.test(services));
+T("keyless分支免Key直连不要求Key", /preset\.keyless[\s\S]{0,220}KeylessImageClient/.test(services) && !/preset\.keyless[\s\S]{0,120}if \(!key\) throw/.test(services));
 T("imgKey走DPAPI且支持GJ_IMG_KEY引导", services.includes("imgKeyEnc") && services.includes("GJ_IMG_KEY"));
 T("未填Key时提示去设置而非直接请求", services.includes("未填生图 API Key"));
 const ipc = await readFile(path.join(root, "src/main/ipc.cjs"), "utf8");

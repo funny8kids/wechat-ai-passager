@@ -19,8 +19,8 @@ const DEFAULT_SETTINGS = {
     调研: { model: "", temperature: 0.5 },
     审核: { model: "", temperature: 0.3 },
   },
-  // 生图：默认指向国内可达的免费端点，Key 由用户自带（加密存储，绝不落明文）
-  imgGen: { provider: "智谱 CogView", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "cogview-3-flash", size: "1024x1024" },
+  // 生图：默认免 Key 免费直连源（零配置可出图）；追求更快可切自带 Key 的国产端点，Key 加密存储绝不落明文
+  imgGen: { provider: "免费直连（免Key）", baseUrl: "https://image.pollinations.ai", model: "", size: "1024x1024" },
 };
 
 function createServices({ lib, safeStorage, dataDir }) {
@@ -137,6 +137,10 @@ function createServices({ lib, safeStorage, dataDir }) {
     const [s, sec] = await Promise.all([getSettings(), getSecrets()]);
     const cfg = { ...(DEFAULT_SETTINGS.imgGen || {}), ...(s.imgGen || {}) };
     const preset = lib.IMAGE_PRESETS[override.provider || cfg.provider] || lib.IMAGE_PRESETS[cfg.provider] || {};
+    if (preset.keyless) {
+      const base = (override.baseUrl || "").trim() || preset.baseUrl || "";
+      return new lib.KeylessImageClient({ baseUrl: base, size: override.size || cfg.size || preset.sizes?.[0] });
+    }
     const baseUrl = (override.baseUrl || "").trim() || cfg.baseUrl || preset.baseUrl || "";
     const model = (override.model || "").trim() || cfg.model || preset.model || "";
     const key = (override.imgKey || "").trim() || sec.imgKey;

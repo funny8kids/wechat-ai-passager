@@ -25,6 +25,7 @@ async function loadCore() {
     JsonStore: store.JsonStore,
     Scheduler: sched.Scheduler,
     ImageGenClient: img.ImageGenClient,
+    KeylessImageClient: img.KeylessImageClient,
     IMAGE_PRESETS: img.IMAGE_PRESETS,
     buildBundle: backup.buildBundle,
     parseBundle: backup.parseBundle,

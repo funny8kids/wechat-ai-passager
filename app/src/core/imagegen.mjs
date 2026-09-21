@@ -1,4 +1,4 @@
-// 文生图客户端：国产 OpenAI 兼容端点（智谱 CogView / 硅基流动 FLUX）+ 任意自定义端点
+// 文生图客户端：国产 OpenAI 兼容端点（智谱 CogView / 硅基流动 FLUX）+ 免 Key 免费直连源 + 任意自定义端点
 // 设计约束：密钥只从主进程传入（DPAPI 解密后），本模块不落盘、不打印密钥；fetch 可注入以便离线测试
 
 export const IMAGE_PRESETS = {
@@ -17,6 +17,14 @@ export const IMAGE_PRESETS = {
     sizes: ["1024x1024", "768x1024", "1024x768"],
     models: ["black-forest-labs/FLUX.1-schnell", "Kwai-Kolors/Kolors"],
     keyHint: "在 https://cloud.siliconflow.cn 注册后 → API 密钥新建（FLUX.1-schnell 有免费额度）",
+  },
+  "免费直连（免Key）": {
+    baseUrl: "https://image.pollinations.ai",
+    model: "",
+    keyless: true,
+    sizes: ["1024x1024", "1024x768", "768x1024", "1280x720"],
+    models: [],
+    keyHint: "内置免费端点，无需任何 Key，装好即可出图。免费档两条如实限制：右下角带 pollinations 水印（发布前建议换图或裁掉）；对中文长提示词理解偏弱，用简短英文或短语更稳。正式配图建议切自带 Key 的源",
   },
   自定义: {
     baseUrl: "",
@@ -110,5 +118,58 @@ export class ImageGenClient {
       out.push({ buf, ext });
     }
     return out;
+  }
+}
+
+// ---------- 免 Key 免费直连：GET 即返图片字节，无需注册/无需密钥 ----------
+
+export function buildKeylessUrl({ baseUrl, prompt, size, seed = Math.floor(Math.random() * 1e6) }) {
+  const text = String(prompt || "").trim();
+  if (!text) throw new Error("画面提示词为空");
+  const m = /^(\d{3,4})x(\d{3,4})$/.exec(String(size || "1024x1024"));
+  if (!m) throw new Error(`免费源的尺寸格式不对：应形如 1024x1024，收到 "${size}"`);
+  const base = String(baseUrl || "").replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(base)) throw new Error("免费生图端点缺失：设置 → 生图服务 选「免费直连（免Key）」预设");
+  // model=flux：显式指定模型池，避开默认后端高峰期共享限流（实测默认池会 429→500）
+  return `${base}/prompt/${encodeURIComponent(text)}?width=${m[1]}&height=${m[2]}&seed=${seed}&nologo=true&model=flux`;
+}
+
+// 只认文件头魔数，不信 Content-Type：免费端点可能把错误页伪装成 200 图片返回
+export function sniffImageExt(buf) {
+  if (!buf || buf.length < 12) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "jpg";
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "png";
+  if (buf.subarray(0, 4).toString("latin1") === "RIFF" && buf.subarray(8, 12).toString("latin1") === "WEBP") return "webp";
+  const head = buf.subarray(0, 6).toString("latin1");
+  if (head === "GIF87a" || head === "GIF89a") return "gif";
+  return null;
+}
+
+export class KeylessImageClient {
+  constructor({ baseUrl, size, fetchImpl, timeoutMs = 120_000 }) {
+    if (!/^https?:\/\//i.test(String(baseUrl || ""))) throw new Error("未配置免费生图端点 baseUrl（选「免费直连（免Key）」预设）");
+    this.baseUrl = baseUrl;
+    this.size = size || "1024x1024";
+    this.fetch = fetchImpl || fetch;
+    this.timeoutMs = timeoutMs;
+  }
+
+  async generate(prompt) {
+    const url = buildKeylessUrl({ baseUrl: this.baseUrl, prompt, size: this.size });
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), this.timeoutMs);
+    let res;
+    try {
+      res = await this.fetch(url);
+    } catch (e) {
+      throw new Error(e?.name === "AbortError" ? `免费生图超时（>${Math.round(this.timeoutMs / 1000)}s）：换自带 Key 的源或稍后重试` : `免费生图请求失败：${e.message}（本机到免费端点网络不通时，切「智谱 CogView」等自带 Key 源）`);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!res.ok) throw new Error(imageApiError(res.status, await res.text().catch(() => "")));
+    const buf = Buffer.from(await res.arrayBuffer());
+    const ext = sniffImageExt(buf);
+    if (!ext) throw new Error("免费生图源没返回图片（可能被限流或网络被劫持）：稍后重试，或切自带 Key 的源  [" + buf.subarray(0, 80).toString("utf8").replace(/[\r\n]+/g, " ") + "]");
+    return [{ buf, ext }];
   }
 }
