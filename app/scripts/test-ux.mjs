@@ -38,6 +38,8 @@ T("打开已存文章即显已保存(首启不假告警)", ed.includes('st.textC
 
 const html = await readFile(path.join(root, "src/ui/index.html"), "utf8");
 T("样式卡有导出/导入按钮与结果位", html.includes("btnThemeExport") && html.includes("btnThemeImport") && html.includes("themePackResult"));
+T("工具栏有表格按钮接线", html.includes('data-md="table"'));
+T("表格插入含对齐行骨架且自动选中首表头(即插即打字)", /table: \(\) => \{[\s\S]{0,500}\| --- \| :---: \| --- \|[\s\S]{0,300}setSelectionRange/.test(wb));
 
 const set = await readFile(path.join(root, "src/ui/js/settings.js"), "utf8");
 T("导出按钮接线", /#btnThemeExport[\s\S]{0,500}themeExport\(\)/.test(set));

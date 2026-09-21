@@ -34,6 +34,14 @@ const MD_ACTIONS = {
   ul: () => taApply("- ", "", { lineMode: true }),
   code: () => taApply("`", "`"),
   link: () => taApply("[", "](https://)"),
+  table: () => {
+    const ta = $("#editor");
+    const s = ta.selectionStart;
+    const line = "\n| 列A | 列B | 列C |\n| --- | :---: | --- |\n| 文字 | 文字 | 文字 |\n";
+    ta.value = ta.value.slice(0, s) + line + ta.value.slice(ta.selectionEnd);
+    ta.focus(); ta.setSelectionRange(s + 3, s + 5); // 选中「列A」，直接打字换表头
+    markDirty(); debounceRender(); updateScore();
+  },
   slot: () => {
     const ta = $("#editor");
     const s = ta.selectionStart;
