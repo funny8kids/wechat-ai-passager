@@ -27,7 +27,7 @@ T("每套主题六色齐全", names.every((n) => ["accent", "heading", "body", "
 const boot = await readFile(path.join(root, "src/ui/js/boot.js"), "utf8");
 T("首启空库自动种示例文章", /!articles\.length && !settings\.sampleSeeded/.test(boot) && boot.includes("seedSample()"));
 T("示例只种一次(sampleSeeded落库)", boot.includes("sampleSeeded: true") && boot.includes("saveArticle"));
-T("示例文章演示全元素", boot.includes("[图槽:") && boot.includes("==高亮==") && boot.includes("复制富文本") && boot.includes("暮山紫") && boot.includes("Markdown 表格直接渲染"));
+T("示例文章演示全元素", boot.includes("[图槽:") && boot.includes("==高亮==") && boot.includes("复制富文本") && boot.includes("暮山紫") && boot.includes("Markdown 表格直接渲染") && boot.includes("~~删除线~~") && boot.includes("- [ ]"));
 T("示例明示可删(HITL)", boot.includes("改它或删它"));
 T("种样例失败不阻塞启动", /catch \{[\s\S]{0,40}示例/.test(boot));
 

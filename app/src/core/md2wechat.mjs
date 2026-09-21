@@ -47,6 +47,7 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
     s = s.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, `<em>$1</em>`);
     s = s.replace(/`([^`]+)`/g, `<code style="background:#f6f7f8;border:1px solid ${t.border};border-radius:4px;padding:1px 5px;font-size:14px;">$1</code>`);
     s = s.replace(/==([^=]+)==/g, `<span style="background:rgba(255,212,0,.35);padding:0 2px;">$1</span>`);
+    s = s.replace(/~~([^~]+)~~/g, `<del style="color:${t.quote};">$1</del>`);
     // 图槽占位（AI 生成的配图意图）
     s = s.replace(/\[图槽:([^\]]+)\]/g, (_, intent) =>
       `<span style="display:inline-block;border:1px dashed ${t.accent};color:${t.accent};border-radius:6px;padding:1px 8px;font-size:12px;background:rgba(10,153,83,.06);">图槽：${esc(intent.trim())}</span>`);
@@ -59,7 +60,7 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
   let listType = null;
   const flushPara = () => {
     if (para.length) {
-      out.push(`<p style="${bodyStyle}margin:0 0 1.1em;text-align:justify;">${inline(para.join("<br>"))}</p>`);
+      out.push(`<p style="${bodyStyle}margin:0 0 1.1em;text-align:justify;">${para.map(inline).join("<br>")}</p>`);
       para = [];
     }
   };
@@ -73,7 +74,7 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];
     const hr = line.match(/^\s*(-{3,}|\*{3,})\s*$/);
-    const h = line.match(/^(#{1,4})\s+(.*)$/);
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
     const quote = line.match(/^>\s?(.*)$/);
     const ul = line.match(/^\s*[-*+]\s+(.*)$/);
     const ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
@@ -94,14 +95,18 @@ export function renderWeChatHtml(md, themeName = "青竹绿", opts = {}) {
     if (hr) { flushPara(); closeList(); out.push(`<hr style="border:none;border-top:1px dashed ${t.border};margin:1.8em 0;">`); continue; }
     if (quote) {
       flushPara(); closeList();
-      out.push(`<blockquote style="margin:0 0 1.1em;padding:10px 14px;border-left:3px solid ${t.accent};background:${t.quoteBg};color:${t.quote};font-size:15px;line-height:1.7;">${inline(quote[1])}</blockquote>`);
+      out.push(`<blockquote style="margin:0 0 1.1em;padding:10px 14px;border-left:3px solid ${t.accent};background:${t.quoteBg};color:${t.quote};font-size:15px;line-height:1.7;">${inline(quote[1].replace(/^(?:>\s*)+/, ""))}</blockquote>`);
       continue;
     }
     if (ul || ol) {
       flushPara();
       const want = ul ? "ul" : "ol";
       if (listType !== want) { closeList(); out.push(want === "ul" ? `<ul style="margin:0 0 1.1em;padding-left:1.4em;">` : `<ol style="margin:0 0 1.1em;padding-left:1.4em;">`); listType = want; }
-      out.push(`<li style="${bodyStyle}margin-bottom:.4em;">${inline((ul || ol)[1])}</li>`);
+      let raw = (ul || ol)[1];
+      const box = raw.match(/^\[( |x|X)\]\s+/); // GFM 任务清单：☐/☑ 前缀，微信正文没有 checkbox 控件只能用字符
+      if (box) raw = raw.slice(box[0].length);
+      const boxHtml = box ? `<span style="color:${t.accent};font-weight:700;margin-right:4px;">${box[1].toLowerCase() === "x" ? "☑" : "☐"}</span>` : "";
+      out.push(`<li style="${bodyStyle}margin-bottom:.4em;">${boxHtml}${inline(raw)}</li>`);
       continue;
     }
     // GFM 表格：表头行 + 分隔行（只含 | : - 空格且带 -）才成立，避免误伤含竖线的普通文字

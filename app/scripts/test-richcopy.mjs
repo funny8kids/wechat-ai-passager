@@ -32,6 +32,14 @@ T("表格样式全内联且无style块", tbl.includes("border-collapse:collapse"
 T("列对齐按分隔行(:---左 / ---:右)", /<th style="[^"]*text-align:left[^"]*">列A/.test(tbl) && /<th style="[^"]*text-align:right[^"]*">列B/.test(tbl));
 T("单元格内加粗生效", /<td[^>]*><strong/.test(tbl));
 T("含竖线的普通文字不误判为表格", /<p[^>]*>价格 1\|2 元<\/p>/.test(tbl));
+const ext2 = renderWeChatHtml("~~删除线~~ 文字\n\n- [ ] 未完成\n- [x] 已完成\n- 普通项", "青竹绿");
+T("删除线渲染为del且不留字面波浪线", ext2.includes("<del") && ext2.includes("删除线") && !ext2.includes("~~"));
+T("任务清单变勾选符号", ext2.includes("☐") && ext2.includes("☑") && !/\[ \]|\[x\]/.test(ext2));
+T("普通列表项不加勾选前缀", /<li[^>]*>普通项<\/li>/.test(ext2));
+const soft = renderWeChatHtml("第一行\n第二行\n\n##### 五级标题\n\n> > 嵌套引用", "青竹绿");
+T("段内软换行产出真实<br>而非字面文本", soft.includes("第一行<br>第二行") && !soft.includes("&lt;br&gt;"));
+T("五级标题不再漏出井号字面", soft.includes("<h3") && !soft.includes("#####"));
+T("嵌套引用剥掉多余尖括号", soft.includes("<blockquote") && !soft.includes("&gt; 嵌套"));
 
 // --- 接线：主进程两条剪贴板通道 + 体积闸门 ---
 const ipc = await readFile(path.join(root, "src/main/ipc.cjs"), "utf8");
