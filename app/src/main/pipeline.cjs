@@ -69,6 +69,13 @@ function createPipeline({ lib, services, getScheduler, notify }) {
       notify(`已按时存入草稿箱：${article.title}`, "打开稿匠可一键发布");
       return;
     }
+    // 错过显形：关机导致大幅迟到的「发布」不擅自补发，转为等你决定（草稿无此风险，照补）
+    const lateMin = Math.round((Date.now() - task.publishAt) / 60_000);
+    if (!task.confirmed && lateMin > 10) {
+      await getScheduler().update(task.id, { status: "awaiting_confirm", late: true });
+      notify(`定时发布错过 ${lateMin} 分钟（电脑当时没开？），未擅自发布：${article.title}`, "打开稿匠选择「仍要发布」或取消后重新定时");
+      return;
+    }
     if (s.confirmBeforePublish && !task.confirmed) {
       // 人在回路：到点只提醒，不自动发布
       await getScheduler().update(task.id, { status: "awaiting_confirm" });

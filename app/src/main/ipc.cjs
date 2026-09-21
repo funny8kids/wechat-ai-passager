@@ -263,6 +263,47 @@ function registerIpc({ ipcMain, dialog, shell, clipboard, nativeImage, lib, serv
 
   // ---------- 系统对话框 ----------
   ipcMain.handle("app:openDataDir", () => shell.openPath(store.dir));
+
+  // ---------- 备份/迁移包：全量数据一键导出导入，密钥绝不进包 ----------
+  const BACKUP_KEYS = ["articles", "settings", "themes", "materials", "queue"];
+  ipcMain.handle("backup:export", async () => {
+    const data = {};
+    for (const k of BACKUP_KEYS) data[k] = await store.load(k, k === "settings" ? {} : []);
+    const assets = {};
+    try {
+      for (const f of await fs.readdir(path.join(store.dir, "assets"))) {
+        const st = await fs.stat(path.join(store.dir, "assets", f));
+        if (st.isFile() && st.size <= 30_000_000) assets[f] = await fs.readFile(path.join(store.dir, "assets", f));
+      }
+    } catch { /* 还没配过图就没有素材，不算错 */ }
+    const text = lib.buildBundle({ data, assets });
+    const def = `稿匠备份-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.json`;
+    const { canceled, filePath } = await dialog.showSaveDialog(getWindow(), { title: "导出备份包", defaultPath: def, filters: [{ name: "稿匠备份包", extensions: ["json"] }] });
+    if (canceled || !filePath) return null;
+    await fs.writeFile(filePath, text);
+    return { path: filePath, articles: data.articles.length, assets: Object.keys(assets).length, mb: (text.length / 1048576).toFixed(1) };
+  });
+  ipcMain.handle("backup:import", async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(getWindow(), { title: "导入备份包", filters: [{ name: "稿匠备份包", extensions: ["json"] }], properties: ["openFile"] });
+    if (canceled || !filePaths[0]) return null;
+    const { data, assets, exportedAt } = lib.parseBundle(await fs.readFile(filePaths[0], "utf8"));
+    const when = exportedAt ? new Date(exportedAt).toLocaleString("zh-CN") : "时间未知";
+    const { response } = await dialog.showMessageBox(getWindow(), {
+      type: "warning", buttons: ["替换并导入", "取消"], defaultId: 1, cancelId: 1,
+      message: `导入这份备份：${(data.articles || []).length} 篇文章、${Object.keys(assets).length} 个素材（导出于 ${when}）`,
+      detail: "当前文章/设置/样式/素材/队列将被替换为备份内容（替换前自动把现有数据存为 .pre-import 文件，可手工找回）。\n密钥不在备份包里：导入后 AI/微信/生图 Key 需在本机重新填一次。",
+    });
+    if (response !== 0) return null;
+    for (const k of Object.keys(data)) {
+      try { await fs.copyFile(path.join(store.dir, k + ".json"), path.join(store.dir, k + ".pre-import.json")); } catch { /* 该文件本来就不存在 */ }
+      await store.save(k, data[k]);
+    }
+    const adir = path.join(store.dir, "assets");
+    await fs.mkdir(adir, { recursive: true });
+    for (const [name, buf] of Object.entries(assets)) await fs.writeFile(path.join(adir, name), buf);
+    _duCache.clear(); // 同名素材已被替换，dataURL 缓存必须作废
+    return { articles: (data.articles || []).length, assets: Object.keys(assets).length };
+  });
   ipcMain.handle("dialog:pickImage", async () => {
     const r = await dialog.showOpenDialog(getWindow(), { filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "gif"] }], properties: ["openFile"] });
     return r.canceled ? null : r.filePaths[0];

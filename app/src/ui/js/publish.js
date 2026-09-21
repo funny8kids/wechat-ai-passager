@@ -41,17 +41,18 @@ async function refreshQueue() {
   for (const q of list) {
     const div = document.createElement("div");
     div.className = "qcard";
-    const stMap = { pending: "排队中", running: "执行中", done: "完成", failed: "失败", awaiting_confirm: q.manual ? "到点·等你复制发布" : "到点·等你放行" };
+    const stMap = { pending: "排队中", running: "执行中", done: "完成", failed: "失败", awaiting_confirm: q.manual ? "到点·等你复制发布" : q.late ? "错过时间·等你决定" : "到点·等你放行" };
     div.innerHTML = `<div class="qt">${esc(q.title || "文章")}<span class="stchip ${q.status}">${stMap[q.status] || q.status}</span>
         ${q.publishId ? `<span class="stchip ${q.pubFinal ? (/^✓/.test(q.pubStatus || "") ? "done" : "failed") : "running"}">${esc(q.pubStatus || "发布状态查询中…")}</span>` : ""}
         <span class="spacer"></span><span class="muted small">${fmtTime(q.publishAt)}</span></div>
       <div class="qm">模式:${q.mode === "draft" ? "仅草稿" : "草稿+发布"} · 创建 ${fmtTime(q.createdAt)}${q.draftMediaId ? " · 草稿ID " + q.draftMediaId.slice(0, 12) + "…" : ""}${q.pubCheckedAt ? " · 状态查询 " + fmtTime(q.pubCheckedAt) : ""}</div>
       ${q.pubError ? `<div class="qm" style="color:var(--warn)">发布状态查询受阻：${esc(q.pubError)}（不影响已提交内容，可在公众号后台查看）</div>` : ""}
+      ${q.late && q.status === "awaiting_confirm" ? `<div class="qm" style="color:var(--warn)">到点时电脑没开，已过期未擅自发布：点「仍要发布」立即补发，或取消任务后重新定时</div>` : ""}
       ${q.status === "failed" ? `<div class="qerr"><b>${esc(q.error || "未知错误")}</b><br>${q.wxcode === 40164 ? "→ 把状态栏的公网IP加入公众号后台白名单后点重试" : q.wxcode === 48001 ? "→ 账号可能无草稿/发布权限（未认证个人订阅号常见），可直接改用「复制富文本」发布" : ""}</div>` : ""}
       <div class="pubrow">
         ${q.status === "awaiting_confirm" && q.manual ? `<button class="btn sm primary cp">去写作页复制</button><span class="muted small">未接微信API：到点已按「提醒模式」处理，复制粘贴即完成发布</span>` : ""}
-        ${q.status === "awaiting_confirm" && !q.manual ? `<button class="btn sm primary cf">确认发布</button>` : ""}
-        ${["pending", "failed"].includes(q.status) || (q.status === "awaiting_confirm" && !q.manual) ? `<button class="btn sm rn">立即执行</button>` : ""}
+        ${q.status === "awaiting_confirm" && !q.manual ? `<button class="btn sm primary cf">${q.late ? "仍要发布" : "确认发布"}</button>` : ""}
+        ${["pending", "failed"].includes(q.status) || (q.status === "awaiting_confirm" && !q.manual && !q.late) ? `<button class="btn sm rn">立即执行</button>` : ""}
         ${q.status === "failed" ? `<button class="btn sm cp">改用「复制富文本」</button>` : ""}
         <button class="btn sm danger rm">取消任务</button>
       </div>`;

@@ -104,6 +104,7 @@ document.addEventListener("keydown", (e) => {
     // 界面 QA：滚动到设置页指定锚点（#demo-settings-end:<css选择器>，默认数据与备份卡片）
     setTimeout(() => {
       $('.tab[data-tab="settings"]').click();
+      $("#toast")?.classList.remove("show"); // 首启提示会挡住卡片按钮，截图前收起
       const sel = (h.split(":")[1] || "").trim();
       const el = (sel && $(sel)) || $("#btnClearAppSecret") || $("#btnOpenDataDir");
       el?.closest(".card")?.scrollIntoView({ block: "center" });

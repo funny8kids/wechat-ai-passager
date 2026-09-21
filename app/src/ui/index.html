@@ -330,8 +330,13 @@
     </div>
     <div class="card">
       <div class="cardhead"><b><svg class="ic"><use href="#i-bookmark"/></svg>数据与备份</b></div>
-      <p class="muted small">文章/设置/样式都是本机 JSON 文件；整个数据目录复制走就算备份。密钥经 Windows 加密只在本机可读，换电脑需重新填。遇到问题先翻 <b>docs/USER-GUIDE.md</b> 的故障排查表。</p>
-      <div class="pubrow"><button id="btnOpenDataDir" class="btn">打开数据目录</button></div>
+      <p class="muted small">文章/设置/样式都是本机 JSON 文件；整个数据目录复制走就算备份。密钥经 Windows 加密只在本机可读，<b>绝不进备份包</b>——换电脑后导入备份包，只需重填一次 Key。遇到问题先翻 <b>docs/USER-GUIDE.md</b> 的故障排查表。</p>
+      <div class="pubrow">
+        <button id="btnBackupExport" class="btn">导出备份包</button>
+        <button id="btnBackupImport" class="btn">导入备份包</button>
+        <button id="btnOpenDataDir" class="btn ghost">打开数据目录</button>
+        <span id="backupResult" class="small muted"></span>
+      </div>
     </div>
   </div>
 </main>

@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld("api", {
   themeDelete: (name) => ipcRenderer.invoke("themes:delete", name),
   pickImage: () => ipcRenderer.invoke("dialog:pickImage"),
   openDataDir: () => ipcRenderer.invoke("app:openDataDir"),
+  backupExport: () => ipcRenderer.invoke("backup:export"),
+  backupImport: () => ipcRenderer.invoke("backup:import"),
   copyRich: (html, text) => ipcRenderer.invoke("clipboard:writeRich", { html, text }),
   copyImage: (name) => ipcRenderer.invoke("clipboard:writeImage", name),
   importAsset: (srcPath) => ipcRenderer.invoke("assets:import", srcPath),

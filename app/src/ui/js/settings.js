@@ -163,6 +163,32 @@ $("#btnOpenDataDir").onclick = async () => {
   const r = await window.api.openDataDir(); // shell.openPath：成功返回空串，失败返回错误文本
   if (r) toast("打开失败：" + r);
 };
+$("#btnBackupExport").onclick = async (e) => {
+  const b = e.target; b.disabled = true; b.textContent = "导出中…";
+  $("#backupResult").textContent = "";
+  try {
+    const r = await window.api.backupExport();
+    if (r) {
+      $("#backupResult").textContent = `已导出 ${r.articles} 篇文章 / ${r.assets} 个素材（${r.mb}MB）`;
+      toast("备份包已保存：" + r.path);
+    }
+  } catch (err) {
+    $("#backupResult").textContent = ""; toast("导出失败：" + err.message);
+  } finally { b.disabled = false; b.textContent = "导出备份包"; }
+};
+$("#btnBackupImport").onclick = async (e) => {
+  const b = e.target; b.disabled = true; b.textContent = "导入中…";
+  try {
+    const r = await window.api.backupImport();
+    if (r) {
+      $("#backupResult").textContent = `已导入 ${r.articles} 篇文章 / ${r.assets} 个素材`;
+      toast("备份已恢复。密钥不在备份包里：AI/微信/生图 Key 请重新填一次", "去填 Key", () => $("#sAiKey").focus());
+      await Promise.all([loadSettings(), loadArticles(), renderMaterials(), refreshQueue(), updatePubBanner()]);
+    }
+  } catch (err) {
+    toast("导入失败：" + err.message + "（当前数据未被改动）");
+  } finally { b.disabled = false; b.textContent = "导入备份包"; }
+};
 $("#btnClearAiKey").onclick = async () => {
   if (!confirm("删除本机保存的 API Key？AI 功能将不可用，直到重新填入")) return;
   await window.api.setSecrets({ aiKey: "" });

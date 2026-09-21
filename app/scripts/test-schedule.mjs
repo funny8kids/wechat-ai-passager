@@ -113,5 +113,21 @@ function mk({ article, settings = {}, clientOver = {}, secrets = { appId: "wx1",
   ok(tasks[0].status === "awaiting_confirm", "runOne：同样尊重执行体转态", tasks[0].status);
 }
 
+// 10) 错过显形：大幅迟到的 publish 任务不擅自补发 → awaiting_confirm+late；draft 照补
+{
+  const art = { id: "a10", title: "迟到的发布", md: "![图](pic1.png)", theme: "青竹绿" };
+  const h = mk({ article: art });
+  await h.p.runScheduled({ id: "t10", articleId: "a10", mode: "publish", publishAt: Date.now() - 40 * 60_000 });
+  ok(h.updates.some((u) => u.status === "awaiting_confirm" && u.late === true), "错过40分钟→等用户决定(late)，不擅自补发");
+  ok(h.calls.publishes.length === 0, "错过时零发布调用");
+  ok(h.notes.some(([t, b]) => t.includes("错过") && b.includes("仍要发布")), "错过通知给出补救选项");
+  const h2 = mk({ article: { ...art, id: "a10b", title: "迟到的草稿" } });
+  await h2.p.runScheduled({ id: "t10b", articleId: "a10b", mode: "draft", publishAt: Date.now() - 40 * 60_000 });
+  ok(h2.calls.drafts.length === 1 && !h2.updates.some((u) => u.late), "draft迟到无风险：照常补进草稿箱");
+  const h3 = mk({ article: art });
+  await h3.p.runScheduled({ id: "t10c", articleId: "a10", mode: "publish", publishAt: Date.now() - 2 * 60_000 });
+  ok(h3.calls.publishes.length === 1, "小幅延迟(≤10分钟)视为正常执行，不误伤");
+}
+
 console.log(`\n结果: ${pass}/${pass + fail} 通过`);
 process.exit(fail ? 1 : 0);
