@@ -9,8 +9,8 @@ const out = [];
 const T = (n, ok, d = "") => out.push(`${ok ? "OK  " : "FAIL"} ${n}${d ? "  [" + d + "]" : ""}`);
 const throws = (fn, re, n) => { try { fn(); T(n, false, "没报错"); } catch (e) { T(n, re.test(e.message), e.message); } };
 
-const { buildBundle, parseBundle, BACKUP_KIND, BACKUP_VERSION } = await import("../src/core/backup.mjs");
-T("导出包带稿匠标识与版本", BACKUP_KIND === "gaojiang-backup" && BACKUP_VERSION === 1);
+const { buildBundle, parseBundle, buildThemePack, parseThemePack, BACKUP_KIND, BACKUP_VERSION, THEMEPACK_KIND } = await import("../src/core/backup.mjs");
+T("导出包带稿匠标识与版本", BACKUP_KIND === "gaojiang-backup" && BACKUP_VERSION === 1 && THEMEPACK_KIND === "gaojiang-themes");
 
 // 1) 全量往返：五类数据 + 素材字节级一致
 {
@@ -56,6 +56,29 @@ T("导出包带稿匠标识与版本", BACKUP_KIND === "gaojiang-backup" && BACK
   throws(() => buildBundle({ data: {}, assets: { "../evil.png": Buffer.from("x") } }), /不合法/, "打包时：路径穿越文件名→拒绝");
   const traversal = JSON.stringify({ kind: BACKUP_KIND, v: 1, data: {}, assets: { "sub/../evil.png": "eA==" } });
   throws(() => parseBundle(traversal), /非法素材文件名/, "导入时：路径穿越→拒绝");
+}
+
+// 5) 样式包：往返 + 校验 + 内置重名跳过 + 密钥红线
+{
+  const themes = [
+    { name: "我的深夜蓝", accent: "#1d4ed8", heading: "#0f172a", body: "#1e293b", quote: "#64748b", quoteBg: "#f1f5f9", border: "#e2e8f0", fontSize: 17, lineHeight: 1.9, letterSpacing: 0.6, builtin: false, junk: "丢" },
+    { name: "只改强调色", accent: "#e11d48" },
+  ];
+  const text = buildThemePack({ themes, exportedAt: 42 });
+  const r = parseThemePack(text, ["青竹绿"]);
+  T("样式包往返保留字段", r.themes.length === 2 && r.themes[0].fontSize === 17 && r.themes[1].accent === "#e11d48" && r.exportedAt === 42);
+  T("非样式字段(junk/builtin)不带进包", !text.includes("丢") && !text.includes("builtin"));
+  throws(() => buildThemePack({ themes: [{ name: "坏", accent: "red" }] }), /合法颜色/, "打包时：非hex颜色→拒绝");
+  throws(() => buildThemePack({ themes: [{ name: "坏", fontSize: 99 }] }), /fontSize/, "打包时：字号越界→拒绝");
+  throws(() => parseThemePack("{{{", []), /JSON/, "损坏样式文件→人话报错");
+  throws(() => parseThemePack(JSON.stringify({ kind: BACKUP_KIND, v: 1, themes: [] }), []), /不是稿匠样式包/, "备份包当样式包→拒收");
+  throws(() => parseThemePack(JSON.stringify({ kind: THEMEPACK_KIND, v: 1, data: { settings: { aiKey: "x" } } }), []), /密钥/, "样式包混入密钥→拒收");
+  const mixed = parseThemePack(buildThemePack({ themes: [{ name: "青竹绿 撞名", accent: "#000000" }] }), ["青竹绿 撞名"]);
+  T("与内置重名→跳过不覆盖", mixed.themes.length === 0 && mixed.skipped.join().includes("重名"));
+  const bad = parseThemePack(JSON.stringify({ kind: THEMEPACK_KIND, v: 1, themes: [{ name: "坏色", accent: "notacolor" }, { name: "好色", accent: "#111111" }] }), []);
+  T("坏样式单份跳过，好样式照常导入", bad.themes.length === 1 && bad.themes[0].name === "好色" && bad.skipped.length === 1);
+  const dup = parseThemePack(JSON.stringify({ kind: THEMEPACK_KIND, v: 1, themes: [{ name: "重复", accent: "#111111" }, { name: "重复", accent: "#222222" }] }), []);
+  T("包内重名取后一份", dup.themes.length === 1 && dup.themes[0].accent === "#222222");
 }
 
 // ---- 接线（导出/导入/换机全链路每一环都有断言） ----

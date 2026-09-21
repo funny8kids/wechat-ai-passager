@@ -28,6 +28,8 @@ async function loadCore() {
     IMAGE_PRESETS: img.IMAGE_PRESETS,
     buildBundle: backup.buildBundle,
     parseBundle: backup.parseBundle,
+    buildThemePack: backup.buildThemePack,
+    parseThemePack: backup.parseThemePack,
   };
 }
 

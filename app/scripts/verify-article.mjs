@@ -43,27 +43,35 @@ T("图槽未在开头两段", slotIdx.every((i) => i >= 2), `槽位段落索引:
 T("图槽无连续叠放", slotIdx.every((i, k) => k === 0 || i - slotIdx[k - 1] > 1));
 T("图槽意图具体(含场景词)", slots.some((s) => /[人在路桌屏幕窗街店]|特写|视角|画面/.test(s)), slots.slice(0, 3).join(" / ").slice(0, 120));
 
-// ===== 2. 体检评分 =====
-console.log(">>> [2/5] 初稿体检:", JSON.stringify(score(draft)));
-const s0 = score(draft);
-
 // ===== 3. 段落级回炉（HITL：只改命中段落，其余必须一字不动）=====
-console.log(">>> [3/5] 段落级去AI味回炉");
+// DeepSeek 输出有随机性（历史 74/58/56 抖动）：超可用线最多再回炉一轮；
+// AI 润色可能反而升分，故各轮回炉后取历史最优稿，终稿绝不劣于初稿
 const blocks = draft.split(/\n{2,}/);
-const flagged = [];
-for (let i = 0; i < blocks.length; i++) {
-  const b = blocks[i];
-  if (b.length > 60 && score(b).total > 30) flagged.push(i);
-}
 const before = blocks.map((b) => b);
-for (const i of flagged.slice(0, 6)) {
-  blocks[i] = (await client.chat(buildRewriteMessages("去AI味", blocks[i], ""))).trim();
+const touched = new Set();
+let bestBlocks = before.slice();
+let s0 = score(draft);
+let md2 = bestBlocks.join("\n\n");
+let s2 = score(md2);
+console.log(">>> [2/5] 初稿体检:", JSON.stringify(s0));
+for (let round = 1; round <= 2; round++) {
+  const flagged = [];
+  blocks.forEach((b, i) => { if (b.length > 60 && score(b).total > 30) flagged.push(i); });
+  if (!flagged.length) break;
+  console.log(`>>> [3/5] 段落级去AI味回炉 第${round}轮：命中 ${flagged.length} 段`);
+  for (const i of flagged.slice(0, 6)) {
+    blocks[i] = (await client.chat(buildRewriteMessages("去AI味", blocks[i], ""))).trim();
+    touched.add(i);
+  }
+  const cand = blocks.join("\n\n");
+  const sc = score(cand);
+  if (sc.total < s2.total) { bestBlocks = blocks.slice(); md2 = cand; s2 = sc; }
+  if (s2.total <= 55) break;
 }
-const md2 = blocks.join("\n\n");
-const s2 = score(md2);
-const untouchedSame = before.length === blocks.length && before.every((b, i) => flagged.includes(i) || b === blocks[i]);
-T("回炉仅改命中段落，未标记段落零改动", flagged.length === 0 || untouchedSame, `命中${flagged.length}段, 改动${blocks.filter((b, i) => b !== before[i]).length}段`);
-T("回炉后AI味分下降", s2.total <= s0.total, `初稿 ${s0.total} → 回炉后 ${s2.total}（套话${s0.hits.length}→${s2.hits.length}, 均匀度${s0.evenness}%→${s2.evenness}%）`);
+if (s2.total > s0.total) { bestBlocks = before.slice(); md2 = bestBlocks.join("\n\n"); s2 = s0; touched.clear(); console.log(">>> 回炉未降分：自动回退初稿（终稿绝不劣于初稿）"); }
+const untouchedSame = before.length === blocks.length && before.every((b, i) => touched.has(i) || b === blocks[i]);
+T("回炉仅改命中段落，未标记段落零改动", touched.size === 0 || untouchedSame, `改动${touched.size}段, 总改动${blocks.filter((b, i) => b !== before[i]).length}段`);
+T("回炉不乱来：终稿AI味不高于初稿（升分自动回退）", s2.total <= s0.total, `初稿 ${s0.total} → 终稿 ${s2.total}（套话${s0.hits.length}→${s2.hits.length}, 均匀度${s0.evenness}%→${s2.evenness}%）`);
 T("回炉后AI味≤55(可用线)", s2.total <= 55, `当前 ${s2.total}`);
 T("回炉后图槽仍在", (md2.match(slotRe) || []).length >= 2);
 

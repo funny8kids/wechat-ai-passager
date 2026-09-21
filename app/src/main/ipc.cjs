@@ -64,6 +64,23 @@ function registerIpc({ ipcMain, dialog, shell, clipboard, nativeImage, lib, serv
   ipcMain.handle("themes:list", () => listThemes());
   ipcMain.handle("themes:save", (e, theme) => saveTheme(theme));
   ipcMain.handle("themes:delete", (e, name) => deleteTheme(name));
+  ipcMain.handle("themes:export", async () => {
+    const { custom } = await listThemes();
+    if (!custom.length) throw new Error("还没有自定义样式可导出（先在下方新建或「复制并修改」一份）");
+    const text = lib.buildThemePack({ themes: custom });
+    const { canceled, filePath } = await dialog.showSaveDialog(getWindow(), { title: "导出样式包", defaultPath: "稿匠样式.json", filters: [{ name: "稿匠样式包", extensions: ["json"] }] });
+    if (canceled || !filePath) return null;
+    await fs.writeFile(filePath, text);
+    return { path: filePath, count: custom.length };
+  });
+  ipcMain.handle("themes:import", async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(getWindow(), { title: "导入样式包", filters: [{ name: "稿匠样式包", extensions: ["json"] }], properties: ["openFile"] });
+    if (canceled || !filePaths[0]) return null;
+    const { themes, skipped } = lib.parseThemePack(await fs.readFile(filePaths[0], "utf8"), Object.keys(lib.BUILTIN_THEMES));
+    if (!themes.length) throw new Error(skipped.length ? "没有可导入的样式：" + skipped.join("；") : "样式包是空的");
+    for (const t of themes) await saveTheme(t); // 同名自定义样式会被覆盖（saveTheme 语义）
+    return { count: themes.length, names: themes.map((t) => t.name), skipped };
+  });
   ipcMain.handle("ai:rewrite", async (e, { task, selText, customNote }) => {
     const client = await aiClient("改写");
     return { text: await client.chat(lib.buildRewriteMessages(task, selText, customNote)) };

@@ -91,6 +91,9 @@ function scheduleAutosave() {
 
 $("#btnNew").onclick = newArticle;
 $("#btnSave").onclick = () => saveCur();
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "s") { e.preventDefault(); saveCur(); }
+});
 $("#editor").addEventListener("input", () => { markDirty(); debounceRender(); updateScore(); });
 $("#fTitle").addEventListener("input", markDirty);
 $("#fTheme").addEventListener("change", () => { markDirty(); renderPreview(); });

@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld("api", {
   themesList: () => ipcRenderer.invoke("themes:list"),
   themeSave: (theme) => ipcRenderer.invoke("themes:save", theme),
   themeDelete: (name) => ipcRenderer.invoke("themes:delete", name),
+  themeExport: () => ipcRenderer.invoke("themes:export"),
+  themeImport: () => ipcRenderer.invoke("themes:import"),
   pickImage: () => ipcRenderer.invoke("dialog:pickImage"),
   openDataDir: () => ipcRenderer.invoke("app:openDataDir"),
   backupExport: () => ipcRenderer.invoke("backup:export"),

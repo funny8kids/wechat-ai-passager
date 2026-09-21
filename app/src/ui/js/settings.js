@@ -303,6 +303,32 @@ $("#btnThemeSave").onclick = async () => {
   toast(`样式「${p.name}」已保存；在写作页主题下拉或上方「默认样式」里选它`);
 };
 
+// ---------- 样式包导出/导入（分享自己的公众号样式 / 换机恢复） ----------
+$("#btnThemeExport").onclick = async (e) => {
+  const b = e.target; b.disabled = true;
+  try {
+    const r = await window.api.themeExport();
+    if (r) {
+      $("#themePackResult").textContent = `已导出 ${r.count} 份「我的」样式`;
+      toast("样式包已保存：" + r.path);
+    }
+  } catch (err) { toast("导出失败：" + err.message); }
+  finally { b.disabled = false; }
+};
+$("#btnThemeImport").onclick = async (e) => {
+  const b = e.target; b.disabled = true;
+  try {
+    const r = await window.api.themeImport();
+    if (r) {
+      $("#themePackResult").textContent = `已导入 ${r.count} 份：${r.names.join("、")}` + (r.skipped.length ? `（跳过 ${r.skipped.length} 份）` : "");
+      toast("样式已导入，在「默认样式」和写作页下拉里即可选" + (r.skipped.length ? "；跳过：" + r.skipped.join("；") : ""));
+      await refreshThemeSelect();
+      fillDefaultTheme(); renderThemes();
+    }
+  } catch (err) { toast("导入失败：" + err.message); }
+  finally { b.disabled = false; }
+};
+
 // ---------- 素材库（作者真实经历，供去AI味改写引用） ----------
 async function renderMaterials() {
   const mats = await window.api.getMaterials();

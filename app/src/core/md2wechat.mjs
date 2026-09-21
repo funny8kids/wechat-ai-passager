@@ -5,6 +5,11 @@ const THEMES = {
   青竹绿: { accent: "#0a9953", heading: "#17372a", body: "#26313f", quote: "#5b6773", quoteBg: "#f4f8f6", border: "#e3e8e6" },
   杂志灰: { accent: "#374151", heading: "#111827", body: "#1f2937", quote: "#6b7280", quoteBg: "#f3f4f6", border: "#e5e7eb" },
   暖橙手账: { accent: "#c2571b", heading: "#4a2511", body: "#3b3630", quote: "#78716c", quoteBg: "#faf5f0", border: "#eee6de" },
+  静墨蓝: { accent: "#2b5cad", heading: "#16283f", body: "#2a3441", quote: "#64748b", quoteBg: "#f2f6fb", border: "#dfe7f0" },
+  宣纸古雅: { accent: "#8b5e34", heading: "#4a3320", body: "#3d3227", quote: "#8d7b68", quoteBg: "#f8f3e9", border: "#e8ddc9" },
+  桃夭文艺: { accent: "#d1547e", heading: "#58202f", body: "#3f2d33", quote: "#9b7a84", quoteBg: "#fbf1f4", border: "#f0dde4" },
+  深海科技: { accent: "#0e7490", heading: "#0c3344", body: "#22343c", quote: "#6b8794", quoteBg: "#eef6f8", border: "#d9e9ee" },
+  暮山紫: { accent: "#6d5bd0", heading: "#2f2654", body: "#3a3550", quote: "#7d7694", quoteBg: "#f4f2fb", border: "#e4dff5" },
 };
 export const BUILTIN_THEMES = THEMES;
 

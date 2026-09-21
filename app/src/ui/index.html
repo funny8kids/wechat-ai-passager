@@ -299,7 +299,12 @@
       <div class="cardhead"><b><svg class="ic"><use href="#i-edit2"/></svg>排版样式</b><span class="muted small">内置样式只读；可存自己的公众号样式，新文章默认用它</span></div>
       <label class="fieldrow">新文章默认样式<select id="sDefaultTheme" class="select"></select></label>
       <div id="themeList" class="themelist"></div>
-      <button id="btnThemeNew" class="btn sm" style="margin-top:10px"><svg class="ic"><use href="#i-plus"/></svg>新建自定义样式</button>
+      <div class="pubrow" style="margin-top:10px">
+        <button id="btnThemeNew" class="btn sm"><svg class="ic"><use href="#i-plus"/></svg>新建自定义样式</button>
+        <button id="btnThemeExport" class="btn sm ghost" title="把「我的」样式存成 JSON，发给别人或换机恢复">导出我的样式</button>
+        <button id="btnThemeImport" class="btn sm ghost" title="导入别人分享的稿匠样式 JSON">导入样式 JSON</button>
+        <span id="themePackResult" class="small muted"></span>
+      </div>
       <div id="themeForm" class="themeform" hidden>
         <div class="tfhead"><b id="tfTitle">新建样式</b><button id="btnThemeCancel" class="tbtn" aria-label="取消"><svg class="ic"><use href="#i-x"/></svg></button></div>
         <div class="grid2">
