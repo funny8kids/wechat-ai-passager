@@ -7,7 +7,7 @@
 1. **单机**：全部数据存本机，不租任何服务器；密钥经 Windows DPAPI 加密落盘
 2. **人在回路**：AI 永远只产出"建议卡片"，逐段应用或忽略，绝不整篇重写
 3. **活人感优先**：内置 AI 味规则评分（套话命中 + 句长均匀度 + 列举腔），去味是产品主线
-4. **配图三源**：AI 生图提示词 / 本地图 / 网图（外链图发布前强制提醒版权与过滤风险）
+4. **配图闭环**：工具内 AI 一键出图（默认「免费直连（免Key）」源，可切自带 Key）/ AI 生图提示词 / 本地图 / 网图（外链图发布前强制提醒版权与过滤风险）
 
 ## 快速开始
 
@@ -36,6 +36,7 @@ AI公众号/
 │  ├─ src/
 │  │  ├─ core/              第①层 核心引擎：平台无关纯 ESM 模块，可独立单测
 │  │  │   ai.mjs            OpenAI 兼容客户端 + 预置任务 prompt 库
+│  │  │   imagegen.mjs      文生图客户端（国产端点 + 免Key免费直连源）
 │  │  │   wechat.mjs        微信开放 API 客户端（token/传图/草稿/发布/错误码表）
 │  │  │   md2wechat.mjs     Markdown → 微信内联样式 HTML（多主题/角注/图槽）
 │  │  │   store.mjs         原子写 JSON 存储
@@ -50,9 +51,11 @@ AI公众号/
 │  │  ├─ preload/index.cjs  第③层 安全桥：contextBridge 白名单
 │  │  └─ ui/                第④层 界面：零依赖经典脚本，按功能域分文件
 │  │      index.html  css/main.css
-│  │      └─ js/ util.js editor.js images.js publish.js settings.js boot.js
+│  │      └─ js/ workbench.js（外壳/快捷键/演示钩子） boot.js（首启引导）
+│  │          editor.js images.js publish.js settings.js hot.js wizard.js util.js
 │  ├─ resources/            图标等资源
-│  ├─ scripts/              工程脚本：lint.mjs / check-wechat.mjs / verify-article.mjs
+│  ├─ scripts/              工程脚本：lint.mjs / verify-article.mjs / check-wechat.mjs
+│  │                        test-*.mjs 行为测试链（npm test）/ qa-clipboard.mjs 真实剪贴板留证
 │  └─ dist/                 打包产物（不入库）
 └─ prototype/               历史交互原型 v0.2（设计参考，非运行代码）
 ```
@@ -62,7 +65,8 @@ AI公众号/
 | 命令 | 作用 |
 |---|---|
 | `npm run lint` | 全部 JS/CJS/MJS 语法检查（曾发生渲染脚本一个括号导致整站静默失效） |
-| `npm run verify` | 真实调用 AI 生成整篇文章，19 项质量断言（图槽位置/去味/HITL 零改动保证/渲染合规） |
+| `npm test` | 全链行为测试 189 项（离线假 fetch 测 AI/生图/微信/备份/调度/剪贴板等，不产生任何真实请求） |
+| `npm run verify` | 真实调用 AI 生成整篇文章，21 项质量断言（图槽位置/去味/HITL 零改动保证/渲染合规） |
 | `npm run check <AppID> <Secret>` | 微信 API 权限探测，不产生任何线上写操作 |
 
 ## 已知边界
