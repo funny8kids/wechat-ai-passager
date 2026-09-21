@@ -39,6 +39,7 @@ const images = await readFile(path.join(root, "src/ui/js/images.js"), "utf8");
 T("配图页每张图有复制此图按钮", images.includes("复制此图") && images.includes("window.api.copyImage("));
 const workbench = await readFile(path.join(root, "src/ui/js/workbench.js"), "utf8");
 T("复制成功文案承诺带图+逐张补", workbench.includes("正文图片已随带") && workbench.includes("复制此图"));
+T("demo-copyimg钩子轮询到按钮出现(防打包exe慢启动假失败)", /demo-copyimg[\s\S]{0,600}setInterval[\s\S]{0,300}#slotList \.copyi/.test(workbench));
 
 console.log(out.join("\n"));
 const failed = out.filter((l) => l.startsWith("FAIL"));

@@ -142,10 +142,15 @@ document.addEventListener("keydown", (e) => {
     }, 600);
   } else if (h === "demo-copyimg") {
     // 界面 QA：配图页真实点「复制此图」→ 外部脚本回读剪贴板位图，验证逐张补图兜底通道
+    // 打包 exe 启动可能超过固定延时：轮询直到素材按钮出现（最多 30 秒），避免钩子时序假失败
     setTimeout(() => {
       $('.tab[data-tab="images"]').click();
-      const b = document.querySelector("#slotList .copyi");
-      if (b) b.click(); else toast("QA 失败：配图页没有可复制的素材图");
+      let n = 0;
+      const t = setInterval(() => {
+        const b = document.querySelector("#slotList .copyi");
+        if (b) { clearInterval(t); b.click(); }
+        else if (++n > 60) { clearInterval(t); toast("QA 失败：配图页没有可复制的素材图"); }
+      }, 500);
     }, 4000);
   } else if (h.startsWith("demo-wiz")) {
     // 界面 QA：打开成稿向导；--gj-tab=demo-wiz-run-N 真实执行第 N 步（需 GJ_AI_KEY + 长 GJ_SHOT_WAIT）
