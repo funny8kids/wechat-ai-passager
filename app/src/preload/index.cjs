@@ -23,12 +23,16 @@ contextBridge.exposeInMainWorld("api", {
   aiAgent: (agent, user) => ipcRenderer.invoke("ai:agent", { agent, user }),
   // 热榜
   hotFetch: (source, force) => ipcRenderer.invoke("hot:fetch", { source, force }),
+  // 未保存内容暂存（崩溃/退出恢复）
+  autosaveSet: (data) => ipcRenderer.invoke("autosave:set", data),
+  autosaveGet: () => ipcRenderer.invoke("autosave:get"),
   // 渲染与素材
   render: (md, theme) => ipcRenderer.invoke("preview:render", { md, theme }),
   themesList: () => ipcRenderer.invoke("themes:list"),
   themeSave: (theme) => ipcRenderer.invoke("themes:save", theme),
   themeDelete: (name) => ipcRenderer.invoke("themes:delete", name),
   pickImage: () => ipcRenderer.invoke("dialog:pickImage"),
+  openDataDir: () => ipcRenderer.invoke("app:openDataDir"),
   importAsset: (srcPath) => ipcRenderer.invoke("assets:import", srcPath),
   assetDataUrl: (name) => ipcRenderer.invoke("asset:dataUrl", name),
   // 微信

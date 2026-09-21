@@ -20,14 +20,18 @@ async function refreshQueue() {
         ${["pending", "failed", "awaiting_confirm"].includes(q.status) ? `<button class="btn sm rn">立即执行</button>` : ""}
         <button class="btn sm danger rm">取消任务</button>
       </div>`;
-    div.querySelector(".rm").onclick = async () => { await window.api.queueRemove(q.id); refreshQueue(); };
-    const cf = div.querySelector(".cf"); if (cf) cf.onclick = async () => { await window.api.queueConfirm(q.id); refreshQueue(); };
-    const rn = div.querySelector(".rn"); if (rn) rn.onclick = async () => { toast("执行中…"); try { await window.api.queueRunNow(q.id); } catch (e) { toast("失败：" + e.message); } refreshQueue(); };
+    div.querySelector(".rm").onclick = async () => { try { await window.api.queueRemove(q.id); toast("任务已取消"); } catch (e) { toast("取消失败：" + e.message); } refreshQueue(); };
+    const cf = div.querySelector(".cf"); if (cf) cf.onclick = async () => { try { await window.api.queueConfirm(q.id); } catch (e) { toast("放行失败：" + e.message); } refreshQueue(); };
+    const rn = div.querySelector(".rn"); if (rn) rn.onclick = async () => { toast("执行中…"); try { await window.api.queueRunNow(q.id); toast("✓ 执行完成"); } catch (e) { toast("失败：" + e.message); } refreshQueue(); };
     box.appendChild(div);
   }
 }
 $("#btnQueueRefresh").onclick = refreshQueue;
 window.api.onSchedulerEvent((evt) => {
+  if (evt.type === "scheduler-error") toast("调度器异常：" + evt.error + "（定时器仍在运行，可到发布页检查队列）");
+  else if (evt.type === "app-alert") toast(`${evt.title}：${evt.body}`);
+  else if (evt.type === "store-corrupted") toast(`数据文件损坏已备份：${evt.names.join("、")}——原内容在数据目录 .corrupted 文件里，可手工找回`, "打开数据目录", () => window.api.openDataDir?.());
+  else if (evt.type === "scheduler-recovered") toast(`上次退出时有 ${evt.count} 个发布任务被中断，已标记为失败，可到发布页手动重试`);
   if (["publish-success", "publish-failed", "queue-update"].includes(evt.type)) refreshQueue();
 });
 

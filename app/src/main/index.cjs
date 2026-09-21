@@ -1,6 +1,6 @@
 // 稿匠 · Electron 主进程入口
 // 职责：应用生命周期、窗口/托盘、依赖装配。业务逻辑在 services / pipeline / ipc 模块中。
-const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, safeStorage, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, safeStorage, dialog, shell } = require("electron");
 const path = require("path");
 
 const { loadCore } = require("./core-loader.cjs");
@@ -11,8 +11,11 @@ const { registerIpc } = require("./ipc.cjs");
 let win, tray, scheduler, isQuitting = false;
 
 function notify(title, body) {
-  try { new Notification({ title, body }).show(); } catch {}
-  if (tray) try { tray.displayBalloon({ title, content: body }); } catch {}
+  let shown = false;
+  try { new Notification({ title, body }).show(); shown = true; } catch {}
+  if (tray) try { tray.displayBalloon({ title, content: body }); shown = true; } catch {}
+  // 系统通知渠道全部失败时退回应用内 toast，保证"到点放行"提醒不静默丢失
+  if (!shown) { try { win?.webContents.send("scheduler-event", { type: "app-alert", title, body }); } catch {} }
 }
 
 function createWindow(preloadPath) {
@@ -53,7 +56,11 @@ function createTray() {
       { label: "退出（停止定时发布）", click: () => { isQuitting = true; app.quit(); } },
     ]));
     tray.setToolTip("稿匠 · 定时发布调度运行中");
-  } catch (e) { console.error("tray failed", e); }
+  } catch (e) {
+    console.error("tray failed", e);
+    // 无托盘 = 关窗即退出、定时调度停摆，必须显形而非静默降级
+    dialog.showErrorBox("稿匠：托盘创建失败", "系统托盘不可用，关闭窗口将直接退出应用，定时发布也会停止。\n建议重启软件。原因：" + String(e?.message || e));
+  }
 }
 function nativeImageTray() {
   const { nativeImage } = require("electron");
@@ -91,13 +98,17 @@ if (!gotLock) {
       });
 
       registerIpc({
-        ipcMain, dialog, lib, services, pipeline,
+        ipcMain, dialog, shell, lib, services, pipeline,
         getScheduled: () => scheduler,
         getWindow: () => win,
       });
       scheduler.start(20_000);
       createWindow(path.join(__dirname, "..", "preload", "index.cjs"));
       createTray();
+      if (services.store.corrupted.length) {
+        // 启动阶段发现的数据文件损坏（已自动备份 .corrupted-*），进界面即显形
+        win.webContents.once("did-finish-load", () => win.webContents.send("scheduler-event", { type: "store-corrupted", names: services.store.corrupted.slice() }));
+      }
       app.on("before-quit", () => { isQuitting = true; });
     } catch (e) {
       console.error("启动失败:", e);

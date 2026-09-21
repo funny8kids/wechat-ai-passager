@@ -7,7 +7,7 @@ const HOT_BASE = "https://60s-api.viki.moe/v2"; // 开源聚合热榜（vikiboss
 const HOT_PLATFORMS = ["weibo", "zhihu", "toutiao", "douyin"];
 const HOT_TTL_MS = 5 * 60 * 1000;
 
-function registerIpc({ ipcMain, dialog, lib, services, pipeline, getScheduled, getWindow }) {
+function registerIpc({ ipcMain, dialog, shell, lib, services, pipeline, getScheduled, getWindow }) {
   const { store, getSettings, setSettings, getSecrets, setSecrets, aiClient, wxClient, listThemes, saveTheme, deleteTheme, renderHtml } = services;
 
   // ---------- 设置与密钥 ----------
@@ -35,7 +35,32 @@ function registerIpc({ ipcMain, dialog, lib, services, pipeline, getScheduled, g
   });
 
   // ---------- 渲染与 AI ----------
-  ipcMain.handle("preview:render", async (e, { md, theme }) => renderHtml(md || "", theme || "青竹绿", {}));
+  // 预览也要能显示本地素材：把 md 里的 assets 名映射为 dataURL（带缓存，发布时才转 CDN）
+  const _duCache = new Map();
+  async function readAssetDataUrl(name) {
+    const base = path.basename(String(name || "")); // 防目录穿越：只认 assets 下文件名
+    const cacheKey = base;
+    if (_duCache.has(cacheKey)) return _duCache.get(cacheKey);
+    const mime = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" }[base.split(".").pop()?.toLowerCase()];
+    if (!mime) return null;
+    try {
+      const buf = await fs.readFile(path.join(store.dir, "assets", base));
+      if (buf.length > 12_000_000) return null;
+      const url = `data:${mime};base64,${buf.toString("base64")}`;
+      _duCache.set(cacheKey, url);
+      return url;
+    } catch { return null; }
+  }
+  async function localImgMap(md) {
+    const map = {};
+    const names = [...md.matchAll(/!\[[^\]]*\]\(\s*([^)\s]+)[^)]*\)/g)].map((m) => m[1]).filter((s) => !/^https?:/i.test(s));
+    for (const n of new Set(names)) {
+      const u = await readAssetDataUrl(n);
+      if (u) map[n] = u;
+    }
+    return map;
+  }
+  ipcMain.handle("preview:render", async (e, { md, theme }) => renderHtml(md || "", theme || "青竹绿", { imgMap: await localImgMap(md || "") }));
   ipcMain.handle("themes:list", () => listThemes());
   ipcMain.handle("themes:save", (e, theme) => saveTheme(theme));
   ipcMain.handle("themes:delete", (e, name) => deleteTheme(name));
@@ -133,16 +158,11 @@ function registerIpc({ ipcMain, dialog, lib, services, pipeline, getScheduled, g
     await fs.copyFile(srcPath, path.join(store.dir, "assets", name));
     return name; // 相对 assets 目录的文件名，md 中写 ![](assets名)
   });
-  ipcMain.handle("asset:dataUrl", async (e, name) => {
-    const base = path.basename(String(name || "")); // 防目录穿越：只认 assets 下文件名
-    const mime = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" }[base.split(".").pop()?.toLowerCase()];
-    if (!mime) return null;
-    try {
-      const buf = await fs.readFile(path.join(store.dir, "assets", base));
-      if (buf.length > 12_000_000) return null;
-      return `data:${mime};base64,${buf.toString("base64")}`;
-    } catch { return null; }
-  });
+  ipcMain.handle("asset:dataUrl", (e, name) => readAssetDataUrl(name));
+
+  // ---------- 崩溃保护：编辑中内容实时暂存，重启可恢复未保存修改 ----------
+  ipcMain.handle("autosave:set", (e, data) => (data ? store.save("autosave", { ...data, ts: Date.now() }) : store.save("autosave", null)));
+  ipcMain.handle("autosave:get", () => store.load("autosave", null));
 
   // ---------- 微信 ----------
   ipcMain.handle("wx:selftest", async () => {
@@ -184,11 +204,12 @@ function registerIpc({ ipcMain, dialog, lib, services, pipeline, getScheduled, g
     const t = tasks.find((x) => x.id === id);
     if (!t) throw new Error("任务不存在");
     await scheduler.update(id, { status: "pending", publishAt: Date.now(), confirmed: true });
-    await scheduler.tick();
+    await scheduler.runOne(id); // 只跑这一个任务，不顺带执行其它到期任务
     return true;
   });
 
   // ---------- 系统对话框 ----------
+  ipcMain.handle("app:openDataDir", () => shell.openPath(store.dir));
   ipcMain.handle("dialog:pickImage", async () => {
     const r = await dialog.showOpenDialog(getWindow(), { filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "gif"] }], properties: ["openFile"] });
     return r.canceled ? null : r.filePaths[0];

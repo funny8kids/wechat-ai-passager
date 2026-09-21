@@ -47,9 +47,12 @@ function createServices({ lib, safeStorage, dataDir }) {
   async function setSecrets(patch) {
     const raw = await store.load("secrets", {});
     const enc = (v) => (v && safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(v).toString("base64") : v);
+    // undefined=不动；空串=明确清除（否则密钥一旦填入就再也删不掉）
     if (patch.appId !== undefined) raw.appId = patch.appId;
-    if (patch.appSecret) raw.appSecretEnc = enc(patch.appSecret);
-    if (patch.aiKey) raw.aiKeyEnc = enc(patch.aiKey);
+    if (patch.appSecret !== undefined) raw.appSecretEnc = patch.appSecret ? enc(patch.appSecret) : undefined;
+    if (patch.aiKey !== undefined) raw.aiKeyEnc = patch.aiKey ? enc(patch.aiKey) : undefined;
+    if (!raw.appSecretEnc) delete raw.appSecretEnc;
+    if (!raw.aiKeyEnc) delete raw.aiKeyEnc;
     await store.save("secrets", raw);
     return { ok: true, encrypted: safeStorage.isEncryptionAvailable() };
   }

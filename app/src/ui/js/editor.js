@@ -48,9 +48,12 @@ function renderArticleListOnly() {
     liEl.querySelector(".del").onclick = async (ev) => {
       ev.stopPropagation();
       if (!confirm(`删除《${a.title || "无题"}》？此操作不可恢复`)) return;
-      await window.api.deleteArticle(a.id);
-      await loadArticles();
-      if (cur && cur.id === a.id) newArticle();
+      try {
+        await window.api.deleteArticle(a.id);
+        await loadArticles();
+        if (cur && cur.id === a.id) newArticle();
+        toast(`已删除《${a.title || "无题"}》`);
+      } catch (e) { toast("删除失败：" + e.message); }
     };
     ul.appendChild(liEl);
   }
@@ -60,6 +63,7 @@ async function saveCur(silent) {
   if (!cur) { toast("请先新建或选择文章"); return; }
   cur.title = $("#fTitle").value.trim(); cur.md = $("#editor").value; cur.theme = $("#fTheme").value;
   await window.api.saveArticle(cur);
+  window.api.autosaveSet(null).catch(() => {});
   const st = $("#saveState"); st.textContent = "已保存 " + new Date().toLocaleTimeString("zh-CN"); st.classList.remove("dirty");
   await loadArticles();
   if (!silent) toast("已保存到本地库");
@@ -73,7 +77,17 @@ function undoSnapshot() {
   $("#editor").value = snapshots.pop();
   renderPreview(); renderBlocks(); updateScore(); markDirty();
 }
-function markDirty() { const el = $("#saveState"); el.textContent = "未保存"; el.classList.add("dirty"); }
+function markDirty() { const el = $("#saveState"); el.textContent = "未保存"; el.classList.add("dirty"); scheduleAutosave(); }
+
+// ---------- 崩溃/退出保护：未保存内容 1.5s 防抖暂存到磁盘，重启自动恢复 ----------
+let _as;
+function scheduleAutosave() {
+  clearTimeout(_as);
+  _as = setTimeout(async () => {
+    if (!cur) return;
+    try { await window.api.autosaveSet({ id: cur.id, title: $("#fTitle").value, md: $("#editor").value, theme: $("#fTheme").value }); } catch {}
+  }, 1500);
+}
 
 $("#btnNew").onclick = newArticle;
 $("#btnSave").onclick = () => saveCur();

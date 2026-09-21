@@ -55,8 +55,44 @@ export class Scheduler {
 
   start(intervalMs = 20_000) {
     this.stop();
-    this.timer = setInterval(() => this.tick().catch((e) => this.notify({ type: "scheduler-error", error: String(e) })), intervalMs);
-    this.tick().catch(() => {});
+    const fail = (e) => this.notify({ type: "scheduler-error", error: String(e?.message || e) });
+    this.timer = setInterval(() => this.tick().catch(fail), intervalMs);
+    this.recoverStuck().catch(fail);
+    this.tick().catch(fail);
+  }
+  // 上次运行崩溃/强退会把任务永久卡在 running：启动时复位为可重试的 failed
+  async recoverStuck() {
+    const tasks = await this.all();
+    let fixed = 0;
+    for (const t of tasks) {
+      if (t.status === "running") { t.status = "failed"; t.error = "任务被应用退出中断，可手动重试"; t.nextRetryAt = 0; fixed++; }
+    }
+    if (fixed) {
+      await this.persist(tasks);
+      this.notify({ type: "scheduler-recovered", count: fixed });
+    }
+  }
+  // 只执行指定任务（区别于 tick 顺带跑其它到期任务）
+  async runOne(id) {
+    const t = (await this.all()).find((x) => x.id === id);
+    if (!t) throw new Error("任务不存在");
+    await this.update(id, { status: "running", startedAt: Date.now() });
+    try {
+      await this.executor(t);
+      await this.update(id, { status: "done", finishedAt: Date.now() });
+      this.notify({ type: "publish-success", task: t });
+    } catch (e) {
+      await this.update(id, {
+        status: "failed",
+        error: String(e.message || e),
+        wxcode: e.wxcode || null,
+        retryCount: (t.retryCount || 0) + 1,
+        autoRetry: t.autoRetry,
+        nextRetryAt: Date.now() + 5 * 60_000,
+      });
+      this.notify({ type: "publish-failed", task: t, error: String(e.message || e) });
+      throw e;
+    }
   }
   stop() {
     if (this.timer) clearInterval(this.timer);

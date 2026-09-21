@@ -64,10 +64,15 @@ function collectAgentParams() {
 $("#btnAiTest").addEventListener("click", async () => {
   const b = $("#btnAiTest"); b.disabled = true;
   $("#aiTestResult").textContent = "正在请求…";
-  const r = await window.api.aiTest({ baseUrl: $("#sBaseUrl").value.trim(), model: $("#sModel").value.trim(), apiKey: $("#sAiKey").value.trim() });
-  b.disabled = false;
-  $("#aiTestResult").textContent = r.ok ? `✓ ${r.ms}ms，模型回复「${r.reply}」` : `✗ ${r.ms}ms：${r.error}`;
-  $("#aiTestResult").className = "small " + (r.ok ? "ok-text" : "bad-text");
+  $("#aiTestResult").className = "small muted";
+  try {
+    const r = await window.api.aiTest({ baseUrl: $("#sBaseUrl").value.trim(), model: $("#sModel").value.trim(), apiKey: $("#sAiKey").value.trim() });
+    $("#aiTestResult").textContent = r.ok ? `✓ ${r.ms}ms，模型回复「${r.reply}」` : `✗ ${r.ms}ms：${r.error}`;
+    $("#aiTestResult").className = "small " + (r.ok ? "ok-text" : "bad-text");
+  } catch (e) {
+    $("#aiTestResult").textContent = "✗ 测试请求本身失败：" + e.message;
+    $("#aiTestResult").className = "small bad-text";
+  } finally { b.disabled = false; }
 });
 
 $("#btnSaveSettings").onclick = async () => {
@@ -81,18 +86,28 @@ $("#btnSaveSettings").onclick = async () => {
   if ($("#sAiKey").value.trim()) patch.aiKey = $("#sAiKey").value.trim();
   if ($("#sAppSecret").value.trim()) patch.appSecret = $("#sAppSecret").value.trim();
   if ($("#sAppId").value.trim()) patch.appId = $("#sAppId").value.trim();
-  if (Object.keys(patch).length) await window.api.setSecrets(patch);
-  $("#sAiKey").value = ""; $("#sAppSecret").value = "";
-  toast("设置已保存（密钥已加密存储）");
+  let encNote = "";
+  if (Object.keys(patch).length) {
+    const r = await window.api.setSecrets(patch);
+    encNote = r.encrypted ? "（已加密存储）" : "（⚠ 本机加密不可用，密钥以明文存在本地，请注意电脑安全）";
+    $("#sAiKey").value = ""; $("#sAppSecret").value = "";
+  }
+  toast("设置已保存" + encNote);
   loadSettings();
 };
+$("#btnIp").onclick = detectIp;
 $("#btnSelfTest").onclick = async () => {
   $("#testResult").innerHTML = li("none", "自检中：token → 草稿权限 → 公网IP…");
-  const steps = await window.api.wxSelfTest();
-  $("#testResult").innerHTML = steps.map(([n, r]) => li(r === "ok" || /^ok/.test(r) ? "ok" : String(r).startsWith("fail") ? "bad" : "none", `${n}：${r}`)).join("");
-  const allOk = steps.every(([, r]) => !String(r).startsWith("fail"));
-  $("#apiChip").textContent = allOk ? "API 正常" : "API 异常";
-  $("#apiChip").className = "chip " + (allOk ? "ok" : "bad");
+  try {
+    const steps = await window.api.wxSelfTest();
+    $("#testResult").innerHTML = steps.map(([n, r]) => li(r === "ok" || /^ok/.test(r) ? "ok" : String(r).startsWith("fail") ? "bad" : "none", `${n}：${r}`)).join("");
+    const allOk = steps.every(([, r]) => !String(r).startsWith("fail"));
+    $("#apiChip").textContent = allOk ? "API 正常" : "API 异常";
+    $("#apiChip").className = "chip " + (allOk ? "ok" : "bad");
+  } catch (e) {
+    $("#testResult").innerHTML = li("bad", "自检异常：" + e.message);
+    $("#apiChip").textContent = "API 异常"; $("#apiChip").className = "chip bad";
+  }
 };
 async function detectIp() {
   $("#ipChip").textContent = "IP 探测中…";
